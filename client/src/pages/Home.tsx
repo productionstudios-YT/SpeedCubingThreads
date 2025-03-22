@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -38,6 +38,46 @@ export default function Home() {
 
   const { data: nextChallengeData, isLoading: nextChallengeLoading } = useQuery({
     queryKey: ["/api/next-challenge"],
+  });
+  
+  const { data: configData } = useQuery({
+    queryKey: ["/api/config"],
+  });
+  
+  // Update form values when config data is loaded
+  useEffect(() => {
+    if (configData && Array.isArray(configData) && configData.length > 0) {
+      const config = configData[0];
+      setGuildId(config.guildId || "");
+      setChannelId(config.channelId || "");
+    }
+  }, [configData]);
+
+  const configMutation = useMutation({
+    mutationFn: async (data: { guildId: string; channelId: string }) => {
+      return apiRequest("/api/config", "POST", {
+        guildId: data.guildId,
+        channelId: data.channelId,
+        enabled: true,
+        timeToPost: "16:00",
+        timezone: "Asia/Kolkata",
+        deleteAfterHours: 24,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/config"] });
+      toast({
+        title: "Settings Saved",
+        description: "Bot configuration has been updated successfully.",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save settings. Please try again.",
+        variant: "destructive",
+      });
+    }
   });
 
   const formatDate = (dateString: string) => {
@@ -440,14 +480,20 @@ export default function Home() {
                         <Button
                           className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
                           onClick={() => {
-                            // Save configuration
-                            toast({
-                              title: "Settings Saved",
-                              description: "Bot configuration has been updated.",
-                            });
+                            if (!guildId || !channelId) {
+                              toast({
+                                title: "Missing Information",
+                                description: "Please enter both Guild ID and Channel ID.",
+                                variant: "destructive"
+                              });
+                              return;
+                            }
+                            
+                            configMutation.mutate({ guildId, channelId });
                           }}
+                          disabled={configMutation.isPending}
                         >
-                          Save Settings
+                          {configMutation.isPending ? "Saving..." : "Save Settings"}
                         </Button>
                       </div>
                     </div>
