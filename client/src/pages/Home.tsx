@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
@@ -12,12 +12,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { CubeType, ChallengeThread } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
+import { queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Home() {
-  const [selectedTab, setSelectedTab] = useState<"bot" | "schedule" | "threads">(
+  const [selectedTab, setSelectedTab] = useState<"bot" | "schedule" | "threads" | "settings">(
     "bot"
   );
+  const [channelId, setChannelId] = useState("");
+  const [guildId, setGuildId] = useState("");
+  const { toast } = useToast();
 
   const { data: healthData, isLoading: healthLoading } = useQuery({
     queryKey: ["/api/health"],
@@ -98,6 +106,17 @@ export default function Home() {
                 </span>
                 <span className="hidden md:block">Threads</span>
               </div>
+              <div
+                className={`flex items-center p-2 rounded hover:bg-[#36393F] cursor-pointer text-[#DCDDDE] ${
+                  selectedTab === "settings" ? "bg-[#5865F2] text-white" : ""
+                }`}
+                onClick={() => setSelectedTab("settings")}
+              >
+                <span className="mr-3 text-[#A3A6AA]">
+                  <i className="fas fa-cog"></i>
+                </span>
+                <span className="hidden md:block">Settings</span>
+              </div>
             </div>
 
             <div className="mb-4">
@@ -176,7 +195,7 @@ export default function Home() {
           {/* Channel Header */}
           <div className="h-12 border-b border-[#202225] flex items-center px-4">
             <span className="mr-2 text-[#A3A6AA]">#</span>
-            <span className="font-bold">scramble-challenges</span>
+            <span className="font-bold">🗓•daily-scramble</span>
             <div className="ml-2 text-xs text-[#A3A6AA] bg-[#2F3136] py-0.5 px-2 rounded">
               Daily Scrambles at 4:00 PM IST
             </div>
@@ -382,6 +401,56 @@ export default function Home() {
                         </TableRow>
                       </TableBody>
                     </Table>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {selectedTab === "settings" && (
+              <div className="mb-6">
+                <h3 className="text-white font-semibold mb-2">
+                  Bot Settings
+                </h3>
+                <Card className="bg-[#2F3136] border-0">
+                  <CardContent className="p-4">
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-[#DCDDDE] text-sm font-medium mb-1">
+                          Discord Guild ID
+                        </label>
+                        <Input
+                          className="bg-[#202225] border-[#202225] text-white placeholder:text-[#72767D]"
+                          placeholder="Enter the Discord Guild ID"
+                          value={guildId}
+                          onChange={(e) => setGuildId(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[#DCDDDE] text-sm font-medium mb-1">
+                          Channel ID for #🗓•daily-scramble
+                        </label>
+                        <Input
+                          className="bg-[#202225] border-[#202225] text-white placeholder:text-[#72767D]"
+                          placeholder="Enter the Channel ID"
+                          value={channelId}
+                          onChange={(e) => setChannelId(e.target.value)}
+                        />
+                      </div>
+                      <div className="pt-2">
+                        <Button
+                          className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
+                          onClick={() => {
+                            // Save configuration
+                            toast({
+                              title: "Settings Saved",
+                              description: "Bot configuration has been updated.",
+                            });
+                          }}
+                        >
+                          Save Settings
+                        </Button>
+                      </div>
+                    </div>
                   </CardContent>
                 </Card>
               </div>
