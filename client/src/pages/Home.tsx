@@ -44,20 +44,30 @@ export default function Home() {
   const { toast } = useToast();
   const { user, logoutMutation } = useAuth();
 
-  const { data: healthData, isLoading: healthLoading } = useQuery({
+  const { data: healthData, isLoading: healthLoading } = useQuery<{
+    status: string;
+    botStatus: string;
+    timestamp: string;
+  }>({
     queryKey: ["/api/health"],
     refetchInterval: 60000, // Refresh every minute
   });
 
-  const { data: threadsData, isLoading: threadsLoading } = useQuery({
+  const { data: threadsData, isLoading: threadsLoading } = useQuery<ChallengeThread[]>({
     queryKey: ["/api/threads"],
   });
 
-  const { data: nextChallengeData, isLoading: nextChallengeLoading } = useQuery({
+  const { data: nextChallengeData, isLoading: nextChallengeLoading } = useQuery<{
+    day: string;
+    cubeType: string;
+    nextTime: string;
+    timeUntil: string;
+    isToday: boolean;
+  }>({
     queryKey: ["/api/next-challenge"],
   });
   
-  const { data: configData } = useQuery({
+  const { data: configData } = useQuery<any[]>({
     queryKey: ["/api/config"],
   });
   
@@ -71,10 +81,11 @@ export default function Home() {
   }, [configData]);
 
   const configMutation = useMutation({
-    mutationFn: async (data: { guildId: string; channelId: string }) => {
+    mutationFn: async (data: { guildId: string; channelId: string; password: string }) => {
       return apiRequest("/api/config", "POST", {
         guildId: data.guildId,
         channelId: data.channelId,
+        password: data.password,
         enabled: true,
         timeToPost: "16:00",
         timezone: "Asia/Kolkata",
@@ -87,11 +98,75 @@ export default function Home() {
         title: "Settings Saved",
         description: "Bot configuration has been updated successfully.",
       });
+      setIsPasswordDialogOpen(false);
+      setPassword("");
     },
     onError: () => {
       toast({
         title: "Error",
         description: "Failed to save settings. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+  
+  const restartBotMutation = useMutation({
+    mutationFn: async (password: string) => {
+      return apiRequest("/api/bot/restart", "POST", { password });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Bot Restarted",
+        description: "The bot has been restarted successfully.",
+      });
+      setIsConfirmRestartOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/health"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to restart the bot. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+  
+  const shutdownBotMutation = useMutation({
+    mutationFn: async (password: string) => {
+      return apiRequest("/api/bot/shutdown", "POST", { password });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Bot Shutdown",
+        description: "The bot has been shut down successfully.",
+      });
+      setIsConfirmShutdownOpen(false);
+      queryClient.invalidateQueries({ queryKey: ["/api/health"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to shut down the bot. Please try again.",
+        variant: "destructive",
+      });
+    }
+  });
+  
+  const rescheduleChallengeMutation = useMutation({
+    mutationFn: async (data: { cubeType: string; password: string }) => {
+      return apiRequest("/api/reschedule", "POST", data);
+    },
+    onSuccess: () => {
+      toast({
+        title: "Challenge Rescheduled",
+        description: "A new challenge thread has been created.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/threads"] });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to reschedule the challenge. Please try again.",
         variant: "destructive",
       });
     }
@@ -506,7 +581,8 @@ export default function Home() {
                               return;
                             }
                             
-                            configMutation.mutate({ guildId, channelId });
+                            // Open password confirmation dialog
+                            setIsPasswordDialogOpen(true);
                           }}
                           disabled={configMutation.isPending}
                         >
@@ -516,14 +592,334 @@ export default function Home() {
                     </div>
                   </CardContent>
                 </Card>
+                
+                {/* System Control Section */}
+                <h3 className="text-white font-semibold mb-2 mt-6">
+                  System Controls
+                </h3>
+                <Card className="bg-[#2F3136] border-0">
+                  <CardContent className="p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <Card className="bg-[#36393F] border-0">
+                        <CardHeader className="p-4 pb-2">
+                          <CardTitle className="text-white text-base">Bot Control</CardTitle>
+                          <CardDescription className="text-[#A3A6AA]">Restart or shut down the bot</CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-0">
+                          <div className="flex flex-col space-y-2">
+                            <Button 
+                              className="bg-[#5865F2] hover:bg-[#4752C4] text-white w-full"
+                              onClick={() => setIsConfirmRestartOpen(true)}
+                            >
+                              <RefreshCw className="mr-2 h-4 w-4" />
+                              Restart Bot
+                            </Button>
+                            <Button 
+                              variant="destructive"
+                              className="w-full"
+                              onClick={() => setIsConfirmShutdownOpen(true)}
+                            >
+                              <PowerOff className="mr-2 h-4 w-4" />
+                              Shutdown Bot
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="bg-[#36393F] border-0">
+                        <CardHeader className="p-4 pb-2">
+                          <CardTitle className="text-white text-base">Account</CardTitle>
+                          <CardDescription className="text-[#A3A6AA]">
+                            Logged in as <span className="text-white">{user?.username}</span>
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-4 pt-0">
+                          <Button 
+                            variant="outline"
+                            className="w-full bg-[#202225] text-white hover:bg-[#36393F] hover:text-[#DCDDDE]"
+                            onClick={() => logoutMutation.mutate()}
+                          >
+                            <LogOut className="mr-2 h-4 w-4" />
+                            Sign Out
+                          </Button>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
             )}
+            
+            {/* Password Dialog */}
+            <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
+              <DialogContent className="bg-[#36393F] text-white border-none">
+                <DialogHeader>
+                  <DialogTitle>Confirm Password</DialogTitle>
+                  <DialogDescription className="text-[#A3A6AA]">
+                    Please enter your password to save settings.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-1 text-[#DCDDDE]">Password</label>
+                  <Input
+                    type="password"
+                    placeholder="Enter your password"
+                    className="bg-[#202225] border-[#202225] text-white"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+                <DialogFooter>
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => {
+                      setIsPasswordDialogOpen(false);
+                      setPassword("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
+                    onClick={() => {
+                      if (!password) {
+                        toast({
+                          title: "Password Required",
+                          description: "Please enter your password to continue.",
+                          variant: "destructive"
+                        });
+                        return;
+                      }
+                      configMutation.mutate({ guildId, channelId, password });
+                    }}
+                    disabled={configMutation.isPending}
+                  >
+                    {configMutation.isPending ? "Saving..." : "Save Settings"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            
+            {/* Restart Confirmation Dialog */}
+            <Dialog open={isConfirmRestartOpen} onOpenChange={setIsConfirmRestartOpen}>
+              <DialogContent className="bg-[#36393F] text-white border-none">
+                <DialogHeader>
+                  <DialogTitle>Confirm Bot Restart</DialogTitle>
+                  <DialogDescription className="text-[#A3A6AA]">
+                    Please enter your password to restart the bot.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="mb-4">
+                  <Alert className="bg-[#FFEEB3] text-black border-none">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Warning</AlertTitle>
+                    <AlertDescription>
+                      Restarting the bot will temporarily disrupt service.
+                    </AlertDescription>
+                  </Alert>
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-1 text-[#DCDDDE]">Password</label>
+                  <Input
+                    type="password"
+                    placeholder="Enter your password"
+                    className="bg-[#202225] border-[#202225] text-white"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+                <DialogFooter>
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => {
+                      setIsConfirmRestartOpen(false);
+                      setPassword("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
+                    onClick={() => {
+                      if (!password) {
+                        toast({
+                          title: "Password Required",
+                          description: "Please enter your password to continue.",
+                          variant: "destructive"
+                        });
+                        return;
+                      }
+                      restartBotMutation.mutate(password);
+                    }}
+                    disabled={restartBotMutation.isPending}
+                  >
+                    {restartBotMutation.isPending ? "Restarting..." : "Restart Bot"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            
+            {/* Shutdown Confirmation Dialog */}
+            <Dialog open={isConfirmShutdownOpen} onOpenChange={setIsConfirmShutdownOpen}>
+              <DialogContent className="bg-[#36393F] text-white border-none">
+                <DialogHeader>
+                  <DialogTitle>Confirm Bot Shutdown</DialogTitle>
+                  <DialogDescription className="text-[#A3A6AA]">
+                    Please enter your password to shut down the bot.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="mb-4">
+                  <Alert className="bg-[#F8A4A8] text-black border-none">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Caution</AlertTitle>
+                    <AlertDescription>
+                      Shutting down the bot will stop all operations until manually restarted.
+                    </AlertDescription>
+                  </Alert>
+                </div>
+                <div className="mb-4">
+                  <label className="block text-sm font-medium mb-1 text-[#DCDDDE]">Password</label>
+                  <Input
+                    type="password"
+                    placeholder="Enter your password"
+                    className="bg-[#202225] border-[#202225] text-white"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                </div>
+                <DialogFooter>
+                  <Button 
+                    variant="ghost" 
+                    onClick={() => {
+                      setIsConfirmShutdownOpen(false);
+                      setPassword("");
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    variant="destructive"
+                    onClick={() => {
+                      if (!password) {
+                        toast({
+                          title: "Password Required",
+                          description: "Please enter your password to continue.",
+                          variant: "destructive"
+                        });
+                        return;
+                      }
+                      shutdownBotMutation.mutate(password);
+                    }}
+                    disabled={shutdownBotMutation.isPending}
+                  >
+                    {shutdownBotMutation.isPending ? "Shutting Down..." : "Shutdown Bot"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             {selectedTab === "threads" && (
               <div className="mb-6">
-                <h3 className="text-white font-semibold mb-2">
-                  Challenge Threads
-                </h3>
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="text-white font-semibold">
+                    Challenge Threads
+                  </h3>
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button
+                        className="bg-[#5865F2] hover:bg-[#4752C4] text-white text-xs"
+                        size="sm"
+                      >
+                        <Calendar className="mr-2 h-4 w-4" />
+                        Reschedule Challenge
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="bg-[#36393F] text-white border-none">
+                      <DialogHeader>
+                        <DialogTitle>Reschedule Challenge</DialogTitle>
+                        <DialogDescription className="text-[#A3A6AA]">
+                          Create a new challenge thread immediately.
+                        </DialogDescription>
+                      </DialogHeader>
+                      
+                      <div className="space-y-4 py-2">
+                        <div className="grid grid-cols-3 gap-2">
+                          <Button
+                            variant="outline"
+                            className="bg-[#202225] hover:bg-[#36393F] text-white border-[#202225]"
+                            onClick={() => {
+                              setIsPasswordDialogOpen(true);
+                              // Set up for 3x3 reschedule
+                            }}
+                          >
+                            3x3
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="bg-[#202225] hover:bg-[#36393F] text-white border-[#202225]"
+                            onClick={() => {
+                              setIsPasswordDialogOpen(true);
+                              // Set up for 2x2 reschedule
+                            }}
+                          >
+                            2x2
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="bg-[#202225] hover:bg-[#36393F] text-white border-[#202225]"
+                            onClick={() => {
+                              setIsPasswordDialogOpen(true);
+                              // Set up for 3x3 BLD reschedule
+                            }}
+                          >
+                            3x3 BLD
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="bg-[#202225] hover:bg-[#36393F] text-white border-[#202225]"
+                            onClick={() => {
+                              setIsPasswordDialogOpen(true);
+                              // Set up for 3x3 OH reschedule
+                            }}
+                          >
+                            3x3 OH
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="bg-[#202225] hover:bg-[#36393F] text-white border-[#202225]"
+                            onClick={() => {
+                              setIsPasswordDialogOpen(true);
+                              // Set up for Skewb reschedule
+                            }}
+                          >
+                            Skewb
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="bg-[#202225] hover:bg-[#36393F] text-white border-[#202225]"
+                            onClick={() => {
+                              setIsPasswordDialogOpen(true);
+                              // Set up for Pyraminx reschedule
+                            }}
+                          >
+                            Pyraminx
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="bg-[#202225] hover:bg-[#36393F] text-white border-[#202225]"
+                            onClick={() => {
+                              setIsPasswordDialogOpen(true);
+                              // Set up for Clock reschedule
+                            }}
+                          >
+                            Clock
+                          </Button>
+                        </div>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+                
                 <Card className="bg-[#2F3136] border-0">
                   <CardContent className="p-4">
                     {threadsLoading ? (
