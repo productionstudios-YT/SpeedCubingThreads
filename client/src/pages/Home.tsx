@@ -900,8 +900,8 @@ export default function Home() {
                             variant="outline"
                             className="bg-[#202225] hover:bg-[#36393F] text-white border-[#202225]"
                             onClick={() => {
-                              setIsPasswordDialogOpen(true);
-                              // Set up for Pyraminx reschedule
+                              setSelectedCubeType("Pyraminx");
+                              setIsReschedulePasswordOpen(true);
                             }}
                           >
                             Pyraminx
@@ -910,8 +910,8 @@ export default function Home() {
                             variant="outline"
                             className="bg-[#202225] hover:bg-[#36393F] text-white border-[#202225]"
                             onClick={() => {
-                              setIsPasswordDialogOpen(true);
-                              // Set up for Clock reschedule
+                              setSelectedCubeType("Clock");
+                              setIsReschedulePasswordOpen(true);
                             }}
                           >
                             Clock
