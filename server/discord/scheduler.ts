@@ -77,46 +77,40 @@ export class Scheduler {
   getNextScheduledChallenge() {
     const now = new Date();
     const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
     
-    // Check if today's challenge is still upcoming (before 4:00 PM IST / 10:30 UTC)
-    let nextDay = currentDay;
-    let isToday = false;
+    // Always check both today and tomorrow
+    const todayDay = currentDay;
+    const tomorrowDay = (currentDay + 1) % 7;
     
-    // 10 = 10 AM UTC, 30 = 30 minutes, equivalent to 4:00 PM IST
-    if (currentHour < 10 || (currentHour === 10 && currentMinute < 30)) {
-      isToday = true;
-    } else {
-      // Move to next day
-      nextDay = (currentDay + 1) % 7;
-    }
-    
-    // Map to day name in proper case
+    // Map to day names
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const dayName = days[nextDay];
+    const todayName = days[todayDay];
+    const tomorrowName = days[tomorrowDay];
     
-    // Map to cube type for that day
+    // Map to cube types
     const dayKeys = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'] as const;
-    const cubeType = daySchedule[dayKeys[nextDay]];
+    const todayCubeType = daySchedule[dayKeys[todayDay]];
+    const tomorrowCubeType = daySchedule[dayKeys[tomorrowDay]];
     
-    // Calculate time until next challenge
+    // Calculate time until next day (midnight)
     const nextDate = new Date();
-    if (!isToday) {
-      nextDate.setDate(nextDate.getDate() + 1);
-    }
-    nextDate.setHours(10, 30, 0, 0); // 10:30 UTC = 4:00 PM IST
+    nextDate.setDate(nextDate.getDate() + 1);
+    nextDate.setHours(0, 0, 0, 0); // Midnight
     
     const timeUntil = nextDate.getTime() - now.getTime();
     const hoursUntil = Math.floor(timeUntil / (1000 * 60 * 60));
     const minutesUntil = Math.floor((timeUntil % (1000 * 60 * 60)) / (1000 * 60));
     
+    // Check existing threads to determine if today's challenge is already created
+    const isToday = true; // Default to today since we're now 24/7
+    
     return {
-      day: dayName,
-      cubeType,
+      day: todayName,
+      cubeType: todayCubeType,
       isToday,
-      nextTime: '4:00 PM IST',
-      timeUntil: `${hoursUntil}h ${minutesUntil}m`
+      nextTime: 'Available 24/7',
+      timeUntil: `${hoursUntil}h ${minutesUntil}m`,
+      tomorrowCubeType // Add tomorrow's cube type for reference
     };
   }
   

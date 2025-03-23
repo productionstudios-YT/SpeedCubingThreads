@@ -421,11 +421,13 @@ export default function Home() {
                               </Badge>
                             </div>
                             <div className="text-[#A3A6AA] text-sm">
-                              Scheduled for{" "}
+                              Available{" "}
                               <span className="text-white">
-                                {nextChallengeData?.nextTime}
-                              </span>{" "}
-                              (in {nextChallengeData?.timeUntil})
+                                24/7
+                              </span>
+                              {nextChallengeData?.isToday ? 
+                                " (already created for today)" : 
+                                " (next type changes in " + nextChallengeData?.timeUntil + ")"}
                             </div>
                           </div>
                         )}
@@ -450,7 +452,7 @@ export default function Home() {
                           <TableHead className="text-[#A3A6AA]">
                             Cube Type
                           </TableHead>
-                          <TableHead className="text-[#A3A6AA]">Time</TableHead>
+                          <TableHead className="text-[#A3A6AA]">Availability</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -462,7 +464,7 @@ export default function Home() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-[#DCDDDE]">
-                            4:00 PM IST
+                            Available 24/7
                           </TableCell>
                         </TableRow>
                         <TableRow className="border-b border-[#202225]">
@@ -473,7 +475,7 @@ export default function Home() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-[#DCDDDE]">
-                            4:00 PM IST
+                            Available 24/7
                           </TableCell>
                         </TableRow>
                         <TableRow className="border-b border-[#202225]">
@@ -486,7 +488,7 @@ export default function Home() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-[#DCDDDE]">
-                            4:00 PM IST
+                            Available 24/7
                           </TableCell>
                         </TableRow>
                         <TableRow className="border-b border-[#202225]">
@@ -497,7 +499,7 @@ export default function Home() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-[#DCDDDE]">
-                            4:00 PM IST
+                            Available 24/7
                           </TableCell>
                         </TableRow>
                         <TableRow className="border-b border-[#202225]">
@@ -508,7 +510,7 @@ export default function Home() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-[#DCDDDE]">
-                            4:00 PM IST
+                            Available 24/7
                           </TableCell>
                         </TableRow>
                         <TableRow className="border-b border-[#202225]">
@@ -519,7 +521,7 @@ export default function Home() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-[#DCDDDE]">
-                            4:00 PM IST
+                            Available 24/7
                           </TableCell>
                         </TableRow>
                         <TableRow>
@@ -530,7 +532,7 @@ export default function Home() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-[#DCDDDE]">
-                            4:00 PM IST
+                            Available 24/7
                           </TableCell>
                         </TableRow>
                       </TableBody>
