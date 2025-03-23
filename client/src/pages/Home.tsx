@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
   Table,
@@ -14,10 +14,22 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { AlertCircle, RefreshCw, PowerOff, Calendar, Save, LogOut } from "lucide-react";
 import { CubeType, ChallengeThread } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/use-auth";
 
 export default function Home() {
   const [selectedTab, setSelectedTab] = useState<"bot" | "schedule" | "threads" | "settings">(
@@ -25,7 +37,12 @@ export default function Home() {
   );
   const [channelId, setChannelId] = useState("");
   const [guildId, setGuildId] = useState("");
+  const [password, setPassword] = useState("");
+  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
+  const [isConfirmRestartOpen, setIsConfirmRestartOpen] = useState(false);
+  const [isConfirmShutdownOpen, setIsConfirmShutdownOpen] = useState(false);
   const { toast } = useToast();
+  const { user, logoutMutation } = useAuth();
 
   const { data: healthData, isLoading: healthLoading } = useQuery({
     queryKey: ["/api/health"],
