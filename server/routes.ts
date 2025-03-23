@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { discordBot } from "./discord/bot";
@@ -7,7 +7,7 @@ import { insertBotConfigSchema } from "@shared/schema";
 import { z } from "zod";
 import { requireAuth } from "./auth";
 
-export async function registerRoutes(app: Express.Application): Promise<Server> {
+export async function registerRoutes(app: Express): Promise<Server> {
   // Create HTTP server
   const httpServer = createServer(app);
   
