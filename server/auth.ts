@@ -52,12 +52,13 @@ export async function setupAuth(app: Express) {
   const sessionSettings: session.SessionOptions = {
     name: 'cube.sid', // Set a specific name for the session cookie
     secret: SESSION_SECRET,
-    resave: true, // Ensures session is saved back to the store
-    saveUninitialized: true, // Save uninitialized sessions
+    resave: false, // Don't save session if unmodified
+    saveUninitialized: false, // Don't save empty sessions, right from the start
     rolling: true, // Reset cookie expiration on each response
     store: new MemStore({
       checkPeriod: 86400000, // 24 hours
-      stale: false // Delete stale sessions
+      stale: false, // Delete stale sessions
+      ttl: 86400000 // 24 hours - matching cookie maxAge
     }),
     cookie: {
       secure: false, // Set to false for development (no HTTPS)
@@ -150,9 +151,9 @@ export async function setupAuth(app: Express) {
   const allUsers = await storage.getAllUsers();
   console.log("All registered users:", allUsers.map(u => ({ id: u.id, username: u.username, role: u.role })));
 
-  // API endpoints for authentication
-  // Login endpoint with detailed logging
-  app.post("/api/login", (req, res, next) => {
+  // API endpoints for authentication with proper /api/auth/ prefix
+  // Login endpoint with detailed logging and session save
+  app.post("/api/auth/login", (req, res, next) => {
     console.log("Login attempt for username:", req.body.username);
     
     passport.authenticate("local", (err: any, user: User | false, info: any) => {
@@ -175,17 +176,26 @@ export async function setupAuth(app: Express) {
         console.log("Login successful, session established for user:", user.username);
         console.log("Session ID:", req.sessionID);
         
-        return res.json({
-          id: user.id,
-          username: user.username,
-          role: user.role
+        // Explicitly save the session to ensure it persists
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error("Session save error:", saveErr);
+            return next(saveErr);
+          }
+          
+          // Return safe user info (no password)
+          return res.json({
+            id: user.id,
+            username: user.username,
+            role: user.role
+          });
         });
       });
     })(req, res, next);
   });
 
   // Logout endpoint with detailed logging
-  app.post("/api/logout", (req, res, next) => {
+  app.post("/api/auth/logout", (req, res, next) => {
     console.log("Logout attempt - User authenticated:", req.isAuthenticated());
     console.log("Logout attempt - Session ID:", req.sessionID);
     
@@ -211,6 +221,19 @@ export async function setupAuth(app: Express) {
       console.log("No session found during logout attempt");
       res.sendStatus(200);
     }
+  });
+  
+  // Maintain backward compatibility with old endpoints
+  app.post("/api/login", (req, res) => {
+    console.log("Redirecting legacy login endpoint to /api/auth/login");
+    req.url = "/api/auth/login";
+    app._router.handle(req, res);
+  });
+  
+  app.post("/api/logout", (req, res) => {
+    console.log("Redirecting legacy logout endpoint to /api/auth/logout");
+    req.url = "/api/auth/logout";
+    app._router.handle(req, res);
   });
 
   // Get current user
