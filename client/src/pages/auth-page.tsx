@@ -14,7 +14,7 @@ import { Loader2, Dice5 } from "lucide-react";
 
 export default function AuthPage() {
   const [activeTab, setActiveTab] = useState<string>("login");
-  const { user, loginMutation } = useAuth();
+  const { user, loginMutation, registerMutation } = useAuth();
   const [, navigate] = useLocation();
 
   // Redirect if the user is already logged in - using useEffect to avoid rendering issues
