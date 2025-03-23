@@ -42,7 +42,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
       sessionID: req.sessionID,
       session: safeSession,
       hasUser: !!req.user,
-      cookies: req.headers.cookie
+      cookies: req.headers.cookie,
+      headers: {
+        ...req.headers,
+        // Don't include authorization header as it may contain sensitive info
+        authorization: req.headers.authorization ? '[REDACTED]' : undefined
+      }
+    });
+  });
+  
+  // Additional detailed debug endpoint
+  apiRouter.get("/debug/request", (req, res) => {
+    console.log("Debug request received - Full URL:", req.originalUrl);
+    console.log("Debug request cookies:", req.headers.cookie);
+    
+    // Create a debug cookie to test cookie functionality
+    res.cookie('debug_test', 'working', { 
+      maxAge: 60000, // 1 minute
+      httpOnly: true,
+      path: '/'
+    });
+    
+    res.json({
+      timestamp: new Date().toISOString(),
+      method: req.method,
+      url: req.originalUrl,
+      headers: {
+        ...req.headers,
+        // Don't include authorization header as it may contain sensitive info
+        authorization: req.headers.authorization ? '[REDACTED]' : undefined
+      },
+      cookies: req.headers.cookie,
+      ip: req.ip,
+      auth: {
+        isAuthenticated: req.isAuthenticated(),
+        user: req.user ? {
+          id: (req.user as any).id,
+          username: (req.user as any).username,
+          role: (req.user as any).role
+        } : null
+      },
+      message: "Debug cookie 'debug_test' set for 1 minute"
     });
   });
   

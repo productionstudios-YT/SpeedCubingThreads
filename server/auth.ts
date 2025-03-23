@@ -44,22 +44,43 @@ async function comparePasswords(supplied: string, stored: string): Promise<boole
 export async function setupAuth(app: Express) {
   const MemStore = MemoryStore(session);
   
-  // Session configuration
+  // Session configuration with detailed logging
+  console.log("Setting up session configuration");
+  const SESSION_SECRET = process.env.SESSION_SECRET || "speedcube-scrambler-secret";
+  console.log(`Using session secret: ${SESSION_SECRET.substring(0, 3)}...`); // Log prefix for security
+  
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || "speedcube-scrambler-secret",
-    resave: true, // Changed to true to ensure session is saved
-    saveUninitialized: true, // Changed to true to ensure new sessions are saved
+    name: 'cube.sid', // Set a specific name for the session cookie
+    secret: SESSION_SECRET,
+    resave: true, // Ensures session is saved back to the store
+    saveUninitialized: true, // Save uninitialized sessions
+    rolling: true, // Reset cookie expiration on each response
     store: new MemStore({
-      checkPeriod: 86400000 // 24 hours
+      checkPeriod: 86400000, // 24 hours
+      stale: false // Delete stale sessions
     }),
     cookie: {
-      secure: false, // Set to false to work in development
-      httpOnly: true,
+      secure: false, // Set to false for development (no HTTPS)
+      httpOnly: true, // Prevent client-side JS from reading the cookie
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: 'lax',
+      sameSite: 'lax', // Helps with CSRF protection
       path: '/' // Ensure cookie is available for all paths
     }
   };
+  
+  console.log("Session configuration complete:", {
+    name: sessionSettings.name,
+    resave: sessionSettings.resave,
+    saveUninitialized: sessionSettings.saveUninitialized,
+    rolling: sessionSettings.rolling,
+    cookie: {
+      secure: sessionSettings.cookie?.secure,
+      httpOnly: sessionSettings.cookie?.httpOnly,
+      maxAge: sessionSettings.cookie?.maxAge,
+      sameSite: sessionSettings.cookie?.sameSite,
+      path: sessionSettings.cookie?.path
+    }
+  });
 
   // Initialize session management
   app.use(session(sessionSettings));
@@ -69,16 +90,30 @@ export async function setupAuth(app: Express) {
   // Set up local authentication strategy
   passport.use(
     new LocalStrategy(async (username, password, done) => {
+      console.log(`Login attempt for username: ${username}`);
       try {
         const user = await storage.getUserByUsername(username);
-        if (!user || !(await comparePasswords(password, user.passwordHash))) {
+        console.log(`User found: ${!!user}`);
+        
+        if (!user) {
+          console.log('Login failed: User not found');
+          return done(null, false, { message: "Invalid username or password" });
+        }
+        
+        const passwordValid = await comparePasswords(password, user.passwordHash);
+        console.log(`Password valid: ${passwordValid}`);
+        
+        if (!passwordValid) {
+          console.log('Login failed: Invalid password');
           return done(null, false, { message: "Invalid username or password" });
         }
         
         // Update last login timestamp
         await storage.updateUserLastLogin(user.id);
+        console.log(`Login successful for user ID: ${user.id}, role: ${user.role}`);
         return done(null, user);
       } catch (err) {
+        console.error('Login error:', err);
         return done(err);
       }
     })
@@ -86,16 +121,25 @@ export async function setupAuth(app: Express) {
 
   // Serialize user ID to the session
   passport.serializeUser((user, done) => {
+    console.log(`Serializing user: ${(user as User).id}, username: ${(user as User).username}`);
     done(null, user.id);
   });
 
   // Deserialize user from the session
   passport.deserializeUser(async (id: number, done) => {
+    console.log(`Deserializing user ID: ${id}`);
     try {
       const user = await storage.getUser(id);
-      done(null, user);
+      if (user) {
+        console.log(`Successfully deserialized user: ${user.username}`);
+        done(null, user);
+      } else {
+        console.log(`Failed to deserialize user - ID ${id} not found`);
+        done(new Error(`User with ID ${id} not found`), null);
+      }
     } catch (err) {
-      done(err);
+      console.error(`Error deserializing user: ${err}`);
+      done(err, null);
     }
   });
 
