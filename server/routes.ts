@@ -5,6 +5,7 @@ import { discordBot } from "./discord/bot";
 import { scheduler } from "./discord/scheduler";
 import { insertBotConfigSchema } from "@shared/schema";
 import { z } from "zod";
+import passport from "passport";
 import { requireAuth } from "./auth";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -239,6 +240,77 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error rescheduling challenge:", error);
       res.status(500).json({ error: "Failed to reschedule challenge" });
+    }
+  });
+  
+  // Add proper auth endpoints that match the client-side expectations
+  apiRouter.post("/auth/login", (req, res, next) => {
+    console.log("Auth login attempt for username:", req.body.username);
+    
+    passport.authenticate("local", (err: any, user: any, info: any) => {
+      if (err) {
+        console.error("Login error:", err);
+        return next(err);
+      }
+      
+      if (!user) {
+        console.log("Login failed: Invalid credentials");
+        return res.status(401).json({ message: "Invalid username or password" });
+      }
+      
+      req.login(user, (loginErr) => {
+        if (loginErr) {
+          console.error("Login error during session establishment:", loginErr);
+          return next(loginErr);
+        }
+        
+        console.log("Login successful, session established for user:", user.username);
+        console.log("Session ID:", req.sessionID);
+        
+        // Force session save to ensure it persists
+        req.session.save((saveErr) => {
+          if (saveErr) {
+            console.error("Session save error:", saveErr);
+            return next(saveErr);
+          }
+          
+          // Only return safe user data (no password hash)
+          return res.json({
+            id: user.id,
+            username: user.username,
+            role: user.role
+          });
+        });
+      });
+    })(req, res, next);
+  });
+
+  // Proper logout endpoint
+  apiRouter.post("/auth/logout", (req, res, next) => {
+    console.log("Auth logout attempt - User authenticated:", req.isAuthenticated());
+    console.log("Auth logout attempt - Session ID:", req.sessionID);
+    
+    if (req.user) {
+      const username = (req.user as any).username;
+      console.log("Auth logout attempt by user:", username);
+    }
+    
+    if (req.session) {
+      console.log("Destroying session...");
+      req.session.destroy((err) => {
+        if (err) {
+          console.error("Error destroying session:", err);
+          return next(err);
+        }
+        
+        req.logout(() => {
+          console.log("Logout successful, session destroyed");
+          return res.sendStatus(200);
+        });
+      });
+    } else {
+      console.log("No session found during logout attempt");
+      res.sendStatus(200);
     }
   });
   

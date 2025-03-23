@@ -40,7 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
       console.log("Attempting login with:", credentials.username);
-      const res = await apiRequest("POST", "/api/login", credentials);
+      const res = await apiRequest("POST", "/api/auth/login", credentials);
       const userData = await res.json();
       console.log("Login response:", userData);
       return userData;
@@ -67,7 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logoutMutation = useMutation({
     mutationFn: async () => {
       console.log("Attempting to logout");
-      await apiRequest("POST", "/api/logout");
+      await apiRequest("POST", "/api/auth/logout");
       console.log("Logout request completed");
     },
     onSuccess: () => {

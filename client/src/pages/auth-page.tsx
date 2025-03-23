@@ -149,33 +149,7 @@ function LoginForm({ isLoading, onSubmit }: { isLoading: boolean; onSubmit: (dat
                 Login
               </Button>
               
-              <div className="flex flex-col space-y-2">
-                <Button 
-                  type="button" 
-                  className="w-full" 
-                  variant="outline"
-                  onClick={() => onSubmit({
-                    username: "developer",
-                    password: "Dev@SpeedCube2025#"
-                  })}
-                  disabled={isLoading}
-                >
-                  Quick Login (Developer)
-                </Button>
-                
-                <Button 
-                  type="button" 
-                  className="w-full" 
-                  variant="outline"
-                  onClick={() => onSubmit({
-                    username: "owner",
-                    password: "Owner@SpeedCube2025!"
-                  })}
-                  disabled={isLoading}
-                >
-                  Quick Login (Owner)
-                </Button>
-              </div>
+              {/* Quick login buttons removed as requested */}
             </div>
           </form>
         </Form>
