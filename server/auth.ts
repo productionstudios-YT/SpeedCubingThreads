@@ -103,20 +103,40 @@ export async function setupAuth(app: Express) {
 
   // API endpoints for authentication
   // Login endpoint
-  app.post("/api/login", passport.authenticate("local"), (req, res) => {
-    const user = req.user as User;
-    res.json({
-      id: user.id,
-      username: user.username,
-      role: user.role
-    });
+  app.post("/api/login", (req, res, next) => {
+    passport.authenticate("local", (err: any, user: User | false, info: any) => {
+      if (err) return next(err);
+      if (!user) {
+        return res.status(401).json({ message: "Invalid username or password" });
+      }
+      
+      req.login(user, (loginErr) => {
+        if (loginErr) return next(loginErr);
+        
+        // Explicitly save the session to ensure cookie is set
+        req.session.save((saveErr) => {
+          if (saveErr) return next(saveErr);
+          
+          console.log("Login successful, session established");
+          return res.json({
+            id: user.id,
+            username: user.username,
+            role: user.role
+          });
+        });
+      });
+    })(req, res, next);
   });
 
   // Logout endpoint
   app.post("/api/logout", (req, res, next) => {
     req.logout((err) => {
       if (err) return next(err);
-      res.sendStatus(200);
+      req.session.destroy((destroyErr) => {
+        if (destroyErr) return next(destroyErr);
+        console.log("Logout successful, session destroyed");
+        res.sendStatus(200);
+      });
     });
   });
 
