@@ -819,6 +819,53 @@ export default function Home() {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+            
+            {/* Reschedule Password Dialog */}
+            <Dialog open={isReschedulePasswordOpen} onOpenChange={setIsReschedulePasswordOpen}>
+              <DialogContent className="bg-[#36393F] text-white border-none">
+                <DialogHeader>
+                  <DialogTitle>Confirm Password</DialogTitle>
+                  <DialogDescription className="text-[#A3A6AA]">
+                    Please enter your password to reschedule a {selectedCubeType} challenge
+                  </DialogDescription>
+                </DialogHeader>
+                <Input
+                  type="password"
+                  placeholder="Enter password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="bg-[#202225] border-0 text-white"
+                />
+                <DialogFooter>
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setIsReschedulePasswordOpen(false);
+                      setPassword("");
+                    }}
+                    className="text-[#A3A6AA] hover:text-white hover:bg-[#2F3136]"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      if (selectedCubeType && password) {
+                        rescheduleChallengeMutation.mutate({
+                          cubeType: selectedCubeType,
+                          password,
+                        });
+                        setIsReschedulePasswordOpen(false);
+                        setPassword("");
+                      }
+                    }}
+                    className="bg-[#5865F2] text-white hover:bg-[#4752C4]"
+                    disabled={rescheduleChallengeMutation.isPending || !password}
+                  >
+                    {rescheduleChallengeMutation.isPending ? "Rescheduling..." : "Reschedule"}
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             {selectedTab === "threads" && (
               <div className="mb-6">
