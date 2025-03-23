@@ -24,6 +24,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
   
+  // Debug session endpoint for troubleshooting
+  apiRouter.get("/debug/session", (req, res) => {
+    // Safe representation of session data (removing sensitive information)
+    const safeSession = req.session ? {
+      id: req.sessionID,
+      cookie: req.session.cookie,
+      passport: req.session.passport ? { 
+        user: req.session.passport.user // Just the user ID
+      } : undefined,
+      authenticated: req.isAuthenticated()
+    } : null;
+    
+    res.json({
+      authenticated: req.isAuthenticated(),
+      sessionExists: !!req.session,
+      sessionID: req.sessionID,
+      session: safeSession,
+      hasUser: !!req.user,
+      cookies: req.headers.cookie
+    });
+  });
+  
   // Get bot configuration
   apiRouter.get("/config", requireAuth, async (req, res) => {
     try {

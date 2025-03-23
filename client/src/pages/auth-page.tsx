@@ -94,9 +94,16 @@ function LoginForm({ isLoading, onSubmit }: { isLoading: boolean; onSubmit: (dat
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: "",
-      password: "",
+      username: "developer", // Pre-fill with developer account
+      password: "Dev@SpeedCube2025#", // Pre-fill with developer password
     },
+    mode: "onChange", // Validate on change
+  });
+  
+  console.log("Login form state:", {
+    isValid: form.formState.isValid,
+    isDirty: form.formState.isDirty,
+    errors: form.formState.errors,
   });
 
   return (
@@ -136,10 +143,25 @@ function LoginForm({ isLoading, onSubmit }: { isLoading: boolean; onSubmit: (dat
                 </FormItem>
               )}
             />
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-              Login
-            </Button>
+            <div className="space-y-2">
+              <Button type="submit" className="w-full" disabled={isLoading}>
+                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                Login
+              </Button>
+              
+              <Button 
+                type="button" 
+                className="w-full" 
+                variant="outline"
+                onClick={() => onSubmit({
+                  username: "developer",
+                  password: "Dev@SpeedCube2025#"
+                })}
+                disabled={isLoading}
+              >
+                Quick Login (Developer)
+              </Button>
+            </div>
           </form>
         </Form>
       </CardContent>
