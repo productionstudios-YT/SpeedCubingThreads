@@ -73,6 +73,12 @@ export default function Home() {
     queryKey: ["/api/config"],
   });
   
+  // Session debug query
+  const { data: sessionDebugData, refetch: refetchSessionDebug } = useQuery<any>({
+    queryKey: ["/api/debug/session"],
+    enabled: false, // Only run when explicitly triggered
+  });
+  
   // Update form values when config data is loaded
   useEffect(() => {
     if (configData && Array.isArray(configData) && configData.length > 0) {
@@ -641,14 +647,54 @@ export default function Home() {
                           </CardDescription>
                         </CardHeader>
                         <CardContent className="p-4 pt-0">
-                          <Button 
-                            variant="outline"
-                            className="w-full bg-[#202225] text-white hover:bg-[#36393F] hover:text-[#DCDDDE]"
-                            onClick={() => logoutMutation.mutate()}
-                          >
-                            <LogOut className="mr-2 h-4 w-4" />
-                            Sign Out
-                          </Button>
+                          <div className="space-y-2">
+                            <Button 
+                              variant="outline"
+                              className="w-full bg-[#202225] text-white hover:bg-[#36393F] hover:text-[#DCDDDE]"
+                              onClick={() => logoutMutation.mutate()}
+                            >
+                              <LogOut className="mr-2 h-4 w-4" />
+                              Sign Out
+                            </Button>
+                            
+                            <Button 
+                              variant="outline"
+                              className="w-full bg-[#36393F] text-white hover:bg-[#2F3136] border-[#202225]"
+                              onClick={() => refetchSessionDebug()}
+                            >
+                              <AlertCircle className="mr-2 h-4 w-4" />
+                              Debug Session
+                            </Button>
+                          </div>
+                          
+                          {/* Session Debug Dialog */}
+                          {sessionDebugData && (
+                            <Dialog open={!!sessionDebugData} onOpenChange={() => {
+                              // Reset session debug data when dialog is closed
+                              queryClient.setQueryData(["/api/debug/session"], null);
+                            }}>
+                              <DialogContent className="bg-[#36393F] text-white border-[#202225]">
+                                <DialogHeader>
+                                  <DialogTitle>Session Debug Info</DialogTitle>
+                                </DialogHeader>
+                                <div className="bg-[#2F3136] p-3 rounded-md overflow-auto max-h-[400px]">
+                                  <pre className="text-xs text-[#DCDDDE] whitespace-pre-wrap">
+                                    {JSON.stringify(sessionDebugData, null, 2)}
+                                  </pre>
+                                </div>
+                                <DialogFooter>
+                                  <Button 
+                                    className="bg-[#5865F2] hover:bg-[#4752C4]"
+                                    onClick={() => {
+                                      queryClient.setQueryData(["/api/debug/session"], null);
+                                    }}
+                                  >
+                                    Close
+                                  </Button>
+                                </DialogFooter>
+                              </DialogContent>
+                            </Dialog>
+                          )}
                         </CardContent>
                       </Card>
                     </div>

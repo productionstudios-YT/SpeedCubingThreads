@@ -30,8 +30,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const safeSession = req.session ? {
       id: req.sessionID,
       cookie: req.session.cookie,
-      passport: req.session.passport ? { 
-        user: req.session.passport.user // Just the user ID
+      passport: (req.session as any).passport ? { 
+        user: (req.session as any).passport.user // Just the user ID
       } : undefined,
       authenticated: req.isAuthenticated()
     } : null;
