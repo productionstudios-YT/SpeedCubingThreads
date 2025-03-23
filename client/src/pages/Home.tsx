@@ -114,7 +114,8 @@ export default function Home() {
   
   const restartBotMutation = useMutation({
     mutationFn: async (password: string) => {
-      return apiRequest("POST", "/api/bot/restart", { password });
+      const response = await apiRequest("POST", "/api/bot/restart", { password });
+      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -135,7 +136,8 @@ export default function Home() {
   
   const shutdownBotMutation = useMutation({
     mutationFn: async (password: string) => {
-      return apiRequest("POST", "/api/bot/shutdown", { password });
+      const response = await apiRequest("POST", "/api/bot/shutdown", { password });
+      return response.json();
     },
     onSuccess: () => {
       toast({
@@ -156,7 +158,8 @@ export default function Home() {
   
   const rescheduleChallengeMutation = useMutation({
     mutationFn: async (data: { cubeType: string; password: string }) => {
-      return apiRequest("POST", "/api/reschedule", data);
+      const response = await apiRequest("POST", "/api/reschedule", data);
+      return response.json();
     },
     onSuccess: () => {
       toast({
