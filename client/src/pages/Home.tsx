@@ -84,7 +84,7 @@ export default function Home() {
 
   const configMutation = useMutation({
     mutationFn: async (data: { guildId: string; channelId: string; password: string }) => {
-      return apiRequest("/api/config", "POST", {
+      return apiRequest("POST", "/api/config", {
         guildId: data.guildId,
         channelId: data.channelId,
         password: data.password,
@@ -114,7 +114,7 @@ export default function Home() {
   
   const restartBotMutation = useMutation({
     mutationFn: async (password: string) => {
-      return apiRequest("/api/bot/restart", "POST", { password });
+      return apiRequest("POST", "/api/bot/restart", { password });
     },
     onSuccess: () => {
       toast({
@@ -135,7 +135,7 @@ export default function Home() {
   
   const shutdownBotMutation = useMutation({
     mutationFn: async (password: string) => {
-      return apiRequest("/api/bot/shutdown", "POST", { password });
+      return apiRequest("POST", "/api/bot/shutdown", { password });
     },
     onSuccess: () => {
       toast({
