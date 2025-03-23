@@ -118,10 +118,11 @@ export class Scheduler {
    * Stop all scheduled jobs
    */
   stopAllJobs() {
-    for (const [name, job] of this.cronJobs.entries()) {
+    // Use Array.from to convert Map entries to an array to avoid iterator issues
+    Array.from(this.cronJobs.entries()).forEach(([name, job]) => {
       console.log(`Stopping scheduled job: ${name}`);
       job.stop();
-    }
+    });
     this.cronJobs.clear();
   }
 }
