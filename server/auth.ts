@@ -100,9 +100,13 @@ export async function setupAuth(app: Express) {
 
   // Create initial users if they don't exist
   await createInitialUsers();
+  
+  // Log all existing users
+  const allUsers = await storage.getAllUsers();
+  console.log("All registered users:", allUsers.map(u => ({ id: u.id, username: u.username, role: u.role })));
 
   // API endpoints for authentication
-  // Login endpoint
+  // Login endpoint - simplified approach
   app.post("/api/login", (req, res, next) => {
     passport.authenticate("local", (err: any, user: User | false, info: any) => {
       if (err) return next(err);
@@ -113,36 +117,36 @@ export async function setupAuth(app: Express) {
       req.login(user, (loginErr) => {
         if (loginErr) return next(loginErr);
         
-        // Explicitly save the session to ensure cookie is set
-        req.session.save((saveErr) => {
-          if (saveErr) return next(saveErr);
-          
-          console.log("Login successful, session established");
-          return res.json({
-            id: user.id,
-            username: user.username,
-            role: user.role
-          });
+        console.log("Login successful, session established");
+        return res.json({
+          id: user.id,
+          username: user.username,
+          role: user.role
         });
       });
     })(req, res, next);
   });
 
-  // Logout endpoint
+  // Logout endpoint - simplified
   app.post("/api/logout", (req, res, next) => {
-    req.logout((err) => {
-      if (err) return next(err);
-      req.session.destroy((destroyErr) => {
-        if (destroyErr) return next(destroyErr);
-        console.log("Logout successful, session destroyed");
-        res.sendStatus(200);
+    if (req.session) {
+      req.session.destroy((err) => {
+        if (err) return next(err);
+        req.logout(() => {
+          console.log("Logout successful, session destroyed");
+          return res.sendStatus(200);
+        });
       });
-    });
+    } else {
+      res.sendStatus(200);
+    }
   });
 
   // Get current user
   app.get("/api/auth/user", (req, res) => {
-    if (!req.user) {
+    console.log("Auth check - isAuthenticated:", req.isAuthenticated());
+    
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).json({ message: "Not authenticated" });
     }
     
