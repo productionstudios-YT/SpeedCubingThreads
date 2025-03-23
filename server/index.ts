@@ -4,6 +4,7 @@ import { setupVite, serveStatic, log } from "./vite";
 import { discordBot } from "./discord/bot";
 import { scheduler } from "./discord/scheduler";
 import { storage } from "./storage";
+import { setupAuth } from "./auth";
 
 const app = express();
 app.use(express.json());
@@ -78,6 +79,9 @@ async function initializeServices() {
 }
 
 (async () => {
+  // Set up authentication
+  await setupAuth(app);
+  
   // Register all routes
   const server = await registerRoutes(app);
   

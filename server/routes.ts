@@ -5,6 +5,7 @@ import { discordBot } from "./discord/bot";
 import { scheduler } from "./discord/scheduler";
 import { insertBotConfigSchema } from "@shared/schema";
 import { z } from "zod";
+import { requireAuth } from "./auth";
 
 export async function registerRoutes(app: Express.Application): Promise<Server> {
   // Create HTTP server
@@ -24,7 +25,7 @@ export async function registerRoutes(app: Express.Application): Promise<Server> 
   });
   
   // Get bot configuration
-  apiRouter.get("/config", async (req, res) => {
+  apiRouter.get("/config", requireAuth, async (req, res) => {
     try {
       const configs = await storage.getAllBotConfigs();
       res.json(configs);
@@ -35,7 +36,7 @@ export async function registerRoutes(app: Express.Application): Promise<Server> 
   });
   
   // Create or update bot configuration
-  apiRouter.post("/config", async (req, res) => {
+  apiRouter.post("/config", requireAuth, async (req, res) => {
     try {
       const configData = insertBotConfigSchema.parse(req.body);
       
@@ -62,7 +63,7 @@ export async function registerRoutes(app: Express.Application): Promise<Server> 
   });
   
   // Get all challenge threads
-  apiRouter.get("/threads", async (req, res) => {
+  apiRouter.get("/threads", requireAuth, async (req, res) => {
     try {
       const threads = await storage.getAllChallengeThreads();
       res.json(threads);
@@ -84,7 +85,7 @@ export async function registerRoutes(app: Express.Application): Promise<Server> 
   });
   
   // Create a manual scramble thread
-  apiRouter.post("/manual-scramble", async (req, res) => {
+  apiRouter.post("/manual-scramble", requireAuth, async (req, res) => {
     try {
       const { guildId, channelId, cubeType } = req.body;
       
