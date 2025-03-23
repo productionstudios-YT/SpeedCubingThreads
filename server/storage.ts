@@ -1,4 +1,4 @@
-import { BotConfig, ChallengeThread, InsertBotConfig, InsertChallengeThread } from '@shared/schema';
+import { BotConfig, ChallengeThread, InsertBotConfig, InsertChallengeThread, User, UserRole } from '@shared/schema';
 
 // Interface for the storage operations
 export interface IStorage {
@@ -17,19 +17,30 @@ export interface IStorage {
   getExpiredThreads(): Promise<ChallengeThread[]>;
   createChallengeThread(thread: InsertChallengeThread): Promise<ChallengeThread>;
   markThreadAsDeleted(id: number): Promise<boolean>;
+  
+  // User operations
+  getUser(id: number): Promise<User | undefined>;
+  getUserByUsername(username: string): Promise<User | undefined>;
+  getAllUsers(): Promise<User[]>;
+  createUser(username: string, passwordHash: string, role: UserRole): Promise<User>;
+  updateUserLastLogin(id: number): Promise<User | undefined>;
 }
 
 export class MemStorage implements IStorage {
   private botConfigs: Map<number, BotConfig>;
   private challengeThreads: Map<number, ChallengeThread>;
+  private users: Map<number, User>;
   private botConfigCurrentId: number;
   private challengeThreadCurrentId: number;
+  private userCurrentId: number;
   
   constructor() {
     this.botConfigs = new Map();
     this.challengeThreads = new Map();
+    this.users = new Map();
     this.botConfigCurrentId = 1;
     this.challengeThreadCurrentId = 1;
+    this.userCurrentId = 1;
   }
   
   // Bot config methods
@@ -108,6 +119,44 @@ export class MemStorage implements IStorage {
     thread.isDeleted = true;
     this.challengeThreads.set(id, thread);
     return true;
+  }
+  
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    return this.users.get(id);
+  }
+  
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    return Array.from(this.users.values()).find(
+      (user) => user.username === username
+    );
+  }
+  
+  async getAllUsers(): Promise<User[]> {
+    return Array.from(this.users.values());
+  }
+  
+  async createUser(username: string, passwordHash: string, role: UserRole): Promise<User> {
+    const id = this.userCurrentId++;
+    const newUser: User = {
+      id,
+      username,
+      passwordHash,
+      role,
+      createdAt: new Date(),
+      lastLogin: null,
+    };
+    this.users.set(id, newUser);
+    return newUser;
+  }
+  
+  async updateUserLastLogin(id: number): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (!user) return undefined;
+    
+    user.lastLogin = new Date();
+    this.users.set(id, user);
+    return user;
   }
 }
 
