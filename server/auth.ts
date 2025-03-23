@@ -47,8 +47,8 @@ export async function setupAuth(app: Express) {
   // Session configuration
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "speedcube-scrambler-secret",
-    resave: false,
-    saveUninitialized: false,
+    resave: true, // Changed to true to ensure session is saved
+    saveUninitialized: true, // Changed to true to ensure new sessions are saved
     store: new MemStore({
       checkPeriod: 86400000 // 24 hours
     }),
@@ -56,7 +56,8 @@ export async function setupAuth(app: Express) {
       secure: false, // Set to false to work in development
       httpOnly: true,
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: 'lax'
+      sameSite: 'lax',
+      path: '/' // Ensure cookie is available for all paths
     }
   };
 
@@ -106,18 +107,30 @@ export async function setupAuth(app: Express) {
   console.log("All registered users:", allUsers.map(u => ({ id: u.id, username: u.username, role: u.role })));
 
   // API endpoints for authentication
-  // Login endpoint - simplified approach
+  // Login endpoint with detailed logging
   app.post("/api/login", (req, res, next) => {
+    console.log("Login attempt for username:", req.body.username);
+    
     passport.authenticate("local", (err: any, user: User | false, info: any) => {
-      if (err) return next(err);
+      if (err) {
+        console.error("Login error:", err);
+        return next(err);
+      }
+      
       if (!user) {
+        console.log("Login failed: Invalid credentials");
         return res.status(401).json({ message: "Invalid username or password" });
       }
       
       req.login(user, (loginErr) => {
-        if (loginErr) return next(loginErr);
+        if (loginErr) {
+          console.error("Login error during session establishment:", loginErr);
+          return next(loginErr);
+        }
         
-        console.log("Login successful, session established");
+        console.log("Login successful, session established for user:", user.username);
+        console.log("Session ID:", req.sessionID);
+        
         return res.json({
           id: user.id,
           username: user.username,
@@ -127,17 +140,31 @@ export async function setupAuth(app: Express) {
     })(req, res, next);
   });
 
-  // Logout endpoint - simplified
+  // Logout endpoint with detailed logging
   app.post("/api/logout", (req, res, next) => {
+    console.log("Logout attempt - User authenticated:", req.isAuthenticated());
+    console.log("Logout attempt - Session ID:", req.sessionID);
+    
+    if (req.user) {
+      const username = (req.user as User).username;
+      console.log("Logout attempt by user:", username);
+    }
+    
     if (req.session) {
+      console.log("Destroying session...");
       req.session.destroy((err) => {
-        if (err) return next(err);
+        if (err) {
+          console.error("Error destroying session:", err);
+          return next(err);
+        }
+        
         req.logout(() => {
           console.log("Logout successful, session destroyed");
           return res.sendStatus(200);
         });
       });
     } else {
+      console.log("No session found during logout attempt");
       res.sendStatus(200);
     }
   });
@@ -145,12 +172,20 @@ export async function setupAuth(app: Express) {
   // Get current user
   app.get("/api/auth/user", (req, res) => {
     console.log("Auth check - isAuthenticated:", req.isAuthenticated());
+    console.log("Auth check - session id:", req.sessionID);
+    console.log("Auth check - session:", req.session);
     
-    if (!req.isAuthenticated() || !req.user) {
-      return res.status(401).json({ message: "Not authenticated" });
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated - isAuthenticated() returned false" });
+    }
+    
+    if (!req.user) {
+      return res.status(401).json({ message: "Not authenticated - req.user is undefined" });
     }
     
     const user = req.user as User;
+    console.log("Auth check - returning user:", { id: user.id, username: user.username, role: user.role });
+    
     res.json({
       id: user.id,
       username: user.username,
