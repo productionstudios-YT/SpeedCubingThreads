@@ -41,6 +41,8 @@ export default function Home() {
   const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
   const [isConfirmRestartOpen, setIsConfirmRestartOpen] = useState(false);
   const [isConfirmShutdownOpen, setIsConfirmShutdownOpen] = useState(false);
+  const [selectedCubeType, setSelectedCubeType] = useState<string>("");
+  const [isReschedulePasswordOpen, setIsReschedulePasswordOpen] = useState(false);
   const { toast } = useToast();
   const { user, logoutMutation } = useAuth();
 
@@ -848,8 +850,8 @@ export default function Home() {
                             variant="outline"
                             className="bg-[#202225] hover:bg-[#36393F] text-white border-[#202225]"
                             onClick={() => {
-                              setIsPasswordDialogOpen(true);
-                              // Set up for 3x3 reschedule
+                              setSelectedCubeType("3x3");
+                              setIsReschedulePasswordOpen(true);
                             }}
                           >
                             3x3
@@ -858,8 +860,8 @@ export default function Home() {
                             variant="outline"
                             className="bg-[#202225] hover:bg-[#36393F] text-white border-[#202225]"
                             onClick={() => {
-                              setIsPasswordDialogOpen(true);
-                              // Set up for 2x2 reschedule
+                              setSelectedCubeType("2x2");
+                              setIsReschedulePasswordOpen(true);
                             }}
                           >
                             2x2
@@ -868,8 +870,8 @@ export default function Home() {
                             variant="outline"
                             className="bg-[#202225] hover:bg-[#36393F] text-white border-[#202225]"
                             onClick={() => {
-                              setIsPasswordDialogOpen(true);
-                              // Set up for 3x3 BLD reschedule
+                              setSelectedCubeType("3x3 BLD");
+                              setIsReschedulePasswordOpen(true);
                             }}
                           >
                             3x3 BLD
@@ -878,8 +880,8 @@ export default function Home() {
                             variant="outline"
                             className="bg-[#202225] hover:bg-[#36393F] text-white border-[#202225]"
                             onClick={() => {
-                              setIsPasswordDialogOpen(true);
-                              // Set up for 3x3 OH reschedule
+                              setSelectedCubeType("3x3 OH");
+                              setIsReschedulePasswordOpen(true);
                             }}
                           >
                             3x3 OH
@@ -888,8 +890,8 @@ export default function Home() {
                             variant="outline"
                             className="bg-[#202225] hover:bg-[#36393F] text-white border-[#202225]"
                             onClick={() => {
-                              setIsPasswordDialogOpen(true);
-                              // Set up for Skewb reschedule
+                              setSelectedCubeType("Skewb");
+                              setIsReschedulePasswordOpen(true);
                             }}
                           >
                             Skewb
