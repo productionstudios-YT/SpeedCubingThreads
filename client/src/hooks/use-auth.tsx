@@ -31,31 +31,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   } = useQuery<User | null, Error>({
     queryKey: ["/api/auth/user"],
     queryFn: getQueryFn({ on401: "returnNull" }),
-    // Override global query client settings for auth checks
-    refetchInterval: 10000, // Check auth status every 10 seconds
-    refetchOnWindowFocus: true,
-    staleTime: 5000, // Consider data stale after 5 seconds
   });
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: LoginData) => {
-      console.log("Attempting login with:", credentials.username);
-      const res = await apiRequest("POST", "/api/auth/login", credentials);
-      const userData = await res.json();
-      console.log("Login response:", userData);
-      return userData;
+      const res = await apiRequest("POST", "/api/login", credentials);
+      return await res.json();
     },
     onSuccess: (user: User) => {
-      console.log("Login successful, updating UI with user:", user);
       queryClient.setQueryData(["/api/auth/user"], user);
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({
         title: "Login successful",
         description: `Welcome back, ${user.username}!`,
       });
     },
     onError: (error: Error) => {
-      console.error("Login failed:", error);
       toast({
         title: "Login failed",
         description: "Invalid username or password",
@@ -66,21 +56,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      console.log("Attempting to logout");
-      await apiRequest("POST", "/api/auth/logout");
-      console.log("Logout request completed");
+      await apiRequest("POST", "/api/logout");
     },
     onSuccess: () => {
-      console.log("Logout successful, clearing user data");
       queryClient.setQueryData(["/api/auth/user"], null);
-      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       toast({
         title: "Logged out",
         description: "You have been successfully logged out",
       });
     },
     onError: (error: Error) => {
-      console.error("Logout failed:", error);
       toast({
         title: "Logout failed",
         description: error.message,

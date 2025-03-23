@@ -132,19 +132,13 @@ export class MemStorage implements IStorage {
   
   // User methods
   async getUser(id: number): Promise<User | undefined> {
-    console.log("Looking for user by id:", id);
-    const user = this.users.get(id);
-    console.log("User found by ID:", user ? { id: user.id, username: user.username, role: user.role } : "none");
-    return user;
+    return this.users.get(id);
   }
   
   async getUserByUsername(username: string): Promise<User | undefined> {
-    console.log("Looking for user by username:", username);
-    const user = Array.from(this.users.values()).find(
+    return Array.from(this.users.values()).find(
       (user) => user.username === username
     );
-    console.log("User found:", user ? { id: user.id, username: user.username, role: user.role } : "none");
-    return user;
   }
   
   async getAllUsers(): Promise<User[]> {
@@ -162,7 +156,6 @@ export class MemStorage implements IStorage {
       lastLogin: null,
     };
     this.users.set(id, newUser);
-    console.log("Created user:", { id, username, role });
     return newUser;
   }
   

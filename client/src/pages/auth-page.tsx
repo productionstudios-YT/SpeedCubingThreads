@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,12 +17,11 @@ export default function AuthPage() {
   const { user, loginMutation } = useAuth();
   const [, navigate] = useLocation();
 
-  // Redirect if the user is already logged in - using useEffect to avoid rendering issues
-  useEffect(() => {
-    if (user) {
-      navigate("/");
-    }
-  }, [user, navigate]);
+  // Redirect if the user is already logged in
+  if (user) {
+    navigate("/");
+    return null;
+  }
 
   return (
     <div className="flex min-h-screen">
@@ -94,16 +93,9 @@ function LoginForm({ isLoading, onSubmit }: { isLoading: boolean; onSubmit: (dat
   const form = useForm<z.infer<typeof loginSchema>>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
-      username: "developer", // Pre-fill with developer account
-      password: "Dev@SpeedCube2025#", // Pre-fill with developer password
+      username: "",
+      password: "",
     },
-    mode: "onChange", // Validate on change
-  });
-  
-  console.log("Login form state:", {
-    isValid: form.formState.isValid,
-    isDirty: form.formState.isDirty,
-    errors: form.formState.errors,
   });
 
   return (
@@ -143,14 +135,10 @@ function LoginForm({ isLoading, onSubmit }: { isLoading: boolean; onSubmit: (dat
                 </FormItem>
               )}
             />
-            <div className="space-y-2">
-              <Button type="submit" className="w-full" disabled={isLoading}>
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Login
-              </Button>
-              
-              {/* Quick login buttons removed as requested */}
-            </div>
+            <Button type="submit" className="w-full" disabled={isLoading}>
+              {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Login
+            </Button>
           </form>
         </Form>
       </CardContent>

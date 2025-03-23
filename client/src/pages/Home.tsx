@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import {
   Table,
@@ -14,22 +14,10 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { 
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { AlertCircle, RefreshCw, PowerOff, Calendar, Save, LogOut } from "lucide-react";
 import { CubeType, ChallengeThread } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";
 
 export default function Home() {
   const [selectedTab, setSelectedTab] = useState<"bot" | "schedule" | "threads" | "settings">(
@@ -37,46 +25,23 @@ export default function Home() {
   );
   const [channelId, setChannelId] = useState("");
   const [guildId, setGuildId] = useState("");
-  const [password, setPassword] = useState("");
-  const [isPasswordDialogOpen, setIsPasswordDialogOpen] = useState(false);
-  const [isConfirmRestartOpen, setIsConfirmRestartOpen] = useState(false);
-  const [isConfirmShutdownOpen, setIsConfirmShutdownOpen] = useState(false);
-  const [selectedCubeType, setSelectedCubeType] = useState<string>("");
-  const [isReschedulePasswordOpen, setIsReschedulePasswordOpen] = useState(false);
   const { toast } = useToast();
-  const { user, logoutMutation } = useAuth();
 
-  const { data: healthData, isLoading: healthLoading } = useQuery<{
-    status: string;
-    botStatus: string;
-    timestamp: string;
-  }>({
+  const { data: healthData, isLoading: healthLoading } = useQuery({
     queryKey: ["/api/health"],
     refetchInterval: 60000, // Refresh every minute
   });
 
-  const { data: threadsData, isLoading: threadsLoading } = useQuery<ChallengeThread[]>({
+  const { data: threadsData, isLoading: threadsLoading } = useQuery({
     queryKey: ["/api/threads"],
   });
 
-  const { data: nextChallengeData, isLoading: nextChallengeLoading } = useQuery<{
-    day: string;
-    cubeType: string;
-    nextTime: string;
-    timeUntil: string;
-    isToday: boolean;
-  }>({
+  const { data: nextChallengeData, isLoading: nextChallengeLoading } = useQuery({
     queryKey: ["/api/next-challenge"],
   });
   
-  const { data: configData } = useQuery<any[]>({
+  const { data: configData } = useQuery({
     queryKey: ["/api/config"],
-  });
-  
-  // Session debug query
-  const { data: sessionDebugData, refetch: refetchSessionDebug } = useQuery<any>({
-    queryKey: ["/api/debug/session"],
-    enabled: false, // Only run when explicitly triggered
   });
   
   // Update form values when config data is loaded
@@ -89,11 +54,10 @@ export default function Home() {
   }, [configData]);
 
   const configMutation = useMutation({
-    mutationFn: async (data: { guildId: string; channelId: string; password: string }) => {
-      return apiRequest("POST", "/api/config", {
+    mutationFn: async (data: { guildId: string; channelId: string }) => {
+      return apiRequest("/api/config", "POST", {
         guildId: data.guildId,
         channelId: data.channelId,
-        password: data.password,
         enabled: true,
         timeToPost: "16:00",
         timezone: "Asia/Kolkata",
@@ -106,78 +70,11 @@ export default function Home() {
         title: "Settings Saved",
         description: "Bot configuration has been updated successfully.",
       });
-      setIsPasswordDialogOpen(false);
-      setPassword("");
     },
     onError: () => {
       toast({
         title: "Error",
         description: "Failed to save settings. Please try again.",
-        variant: "destructive",
-      });
-    }
-  });
-  
-  const restartBotMutation = useMutation({
-    mutationFn: async (password: string) => {
-      const response = await apiRequest("POST", "/api/bot/restart", { password });
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Bot Restarted",
-        description: "The bot has been restarted successfully.",
-      });
-      setIsConfirmRestartOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/health"] });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to restart the bot. Please try again.",
-        variant: "destructive",
-      });
-    }
-  });
-  
-  const shutdownBotMutation = useMutation({
-    mutationFn: async (password: string) => {
-      const response = await apiRequest("POST", "/api/bot/shutdown", { password });
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Bot Shutdown",
-        description: "The bot has been shut down successfully.",
-      });
-      setIsConfirmShutdownOpen(false);
-      queryClient.invalidateQueries({ queryKey: ["/api/health"] });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to shut down the bot. Please try again.",
-        variant: "destructive",
-      });
-    }
-  });
-  
-  const rescheduleChallengeMutation = useMutation({
-    mutationFn: async (data: { cubeType: string; password: string }) => {
-      const response = await apiRequest("POST", "/api/reschedule", data);
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Challenge Rescheduled",
-        description: "A new challenge thread has been created.",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/threads"] });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to reschedule the challenge. Please try again.",
         variant: "destructive",
       });
     }
@@ -340,7 +237,7 @@ export default function Home() {
             <span className="mr-2 text-[#A3A6AA]">#</span>
             <span className="font-bold">🗓•daily-scramble</span>
             <div className="ml-2 text-xs text-[#A3A6AA] bg-[#2F3136] py-0.5 px-2 rounded">
-              Daily Scrambles Available 24/7
+              Daily Scrambles at 4:00 PM IST
             </div>
           </div>
 
@@ -362,7 +259,7 @@ export default function Home() {
                         <p className="text-[#DCDDDE] mb-2">
                           This bot posts daily scramble challenges for different
                           cube types based on the day of the week. Challenges
-                          are posted automatically and available 24/7, with threads
+                          are posted at 4:00 PM IST and threads are
                           automatically deleted after 24 hours.
                         </p>
                         <div className="flex flex-wrap gap-2">
@@ -430,13 +327,11 @@ export default function Home() {
                               </Badge>
                             </div>
                             <div className="text-[#A3A6AA] text-sm">
-                              Available{" "}
+                              Scheduled for{" "}
                               <span className="text-white">
-                                24/7
-                              </span>
-                              {nextChallengeData?.isToday ? 
-                                " (already created for today)" : 
-                                " (next type changes in " + nextChallengeData?.timeUntil + ")"}
+                                {nextChallengeData?.nextTime}
+                              </span>{" "}
+                              (in {nextChallengeData?.timeUntil})
                             </div>
                           </div>
                         )}
@@ -461,7 +356,7 @@ export default function Home() {
                           <TableHead className="text-[#A3A6AA]">
                             Cube Type
                           </TableHead>
-                          <TableHead className="text-[#A3A6AA]">Availability</TableHead>
+                          <TableHead className="text-[#A3A6AA]">Time</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -473,7 +368,7 @@ export default function Home() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-[#DCDDDE]">
-                            Available 24/7
+                            4:00 PM IST
                           </TableCell>
                         </TableRow>
                         <TableRow className="border-b border-[#202225]">
@@ -484,7 +379,7 @@ export default function Home() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-[#DCDDDE]">
-                            Available 24/7
+                            4:00 PM IST
                           </TableCell>
                         </TableRow>
                         <TableRow className="border-b border-[#202225]">
@@ -497,7 +392,7 @@ export default function Home() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-[#DCDDDE]">
-                            Available 24/7
+                            4:00 PM IST
                           </TableCell>
                         </TableRow>
                         <TableRow className="border-b border-[#202225]">
@@ -508,7 +403,7 @@ export default function Home() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-[#DCDDDE]">
-                            Available 24/7
+                            4:00 PM IST
                           </TableCell>
                         </TableRow>
                         <TableRow className="border-b border-[#202225]">
@@ -519,7 +414,7 @@ export default function Home() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-[#DCDDDE]">
-                            Available 24/7
+                            4:00 PM IST
                           </TableCell>
                         </TableRow>
                         <TableRow className="border-b border-[#202225]">
@@ -530,7 +425,7 @@ export default function Home() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-[#DCDDDE]">
-                            Available 24/7
+                            4:00 PM IST
                           </TableCell>
                         </TableRow>
                         <TableRow>
@@ -541,7 +436,7 @@ export default function Home() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-[#DCDDDE]">
-                            Available 24/7
+                            4:00 PM IST
                           </TableCell>
                         </TableRow>
                       </TableBody>
@@ -594,8 +489,7 @@ export default function Home() {
                               return;
                             }
                             
-                            // Open password confirmation dialog
-                            setIsPasswordDialogOpen(true);
+                            configMutation.mutate({ guildId, channelId });
                           }}
                           disabled={configMutation.isPending}
                         >
@@ -605,421 +499,14 @@ export default function Home() {
                     </div>
                   </CardContent>
                 </Card>
-                
-                {/* System Control Section */}
-                <h3 className="text-white font-semibold mb-2 mt-6">
-                  System Controls
-                </h3>
-                <Card className="bg-[#2F3136] border-0">
-                  <CardContent className="p-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <Card className="bg-[#36393F] border-0">
-                        <CardHeader className="p-4 pb-2">
-                          <CardTitle className="text-white text-base">Bot Control</CardTitle>
-                          <CardDescription className="text-[#A3A6AA]">Restart or shut down the bot</CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-0">
-                          <div className="flex flex-col space-y-2">
-                            <Button 
-                              className="bg-[#5865F2] hover:bg-[#4752C4] text-white w-full"
-                              onClick={() => setIsConfirmRestartOpen(true)}
-                            >
-                              <RefreshCw className="mr-2 h-4 w-4" />
-                              Restart Bot
-                            </Button>
-                            <Button 
-                              variant="destructive"
-                              className="w-full"
-                              onClick={() => setIsConfirmShutdownOpen(true)}
-                            >
-                              <PowerOff className="mr-2 h-4 w-4" />
-                              Shutdown Bot
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                      
-                      <Card className="bg-[#36393F] border-0">
-                        <CardHeader className="p-4 pb-2">
-                          <CardTitle className="text-white text-base">Account</CardTitle>
-                          <CardDescription className="text-[#A3A6AA]">
-                            Logged in as <span className="text-white">{user?.username}</span>
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent className="p-4 pt-0">
-                          <div className="space-y-2">
-                            <Button 
-                              variant="outline"
-                              className="w-full bg-[#202225] text-white hover:bg-[#36393F] hover:text-[#DCDDDE]"
-                              onClick={() => logoutMutation.mutate()}
-                            >
-                              <LogOut className="mr-2 h-4 w-4" />
-                              Sign Out
-                            </Button>
-                            
-                            <Button 
-                              variant="outline"
-                              className="w-full bg-[#36393F] text-white hover:bg-[#2F3136] border-[#202225]"
-                              onClick={() => refetchSessionDebug()}
-                            >
-                              <AlertCircle className="mr-2 h-4 w-4" />
-                              Debug Session
-                            </Button>
-                          </div>
-                          
-                          {/* Session Debug Dialog */}
-                          {sessionDebugData && (
-                            <Dialog open={!!sessionDebugData} onOpenChange={() => {
-                              // Reset session debug data when dialog is closed
-                              queryClient.setQueryData(["/api/debug/session"], null);
-                            }}>
-                              <DialogContent className="bg-[#36393F] text-white border-[#202225]">
-                                <DialogHeader>
-                                  <DialogTitle>Session Debug Info</DialogTitle>
-                                </DialogHeader>
-                                <div className="bg-[#2F3136] p-3 rounded-md overflow-auto max-h-[400px]">
-                                  <pre className="text-xs text-[#DCDDDE] whitespace-pre-wrap">
-                                    {JSON.stringify(sessionDebugData, null, 2)}
-                                  </pre>
-                                </div>
-                                <DialogFooter>
-                                  <Button 
-                                    className="bg-[#5865F2] hover:bg-[#4752C4]"
-                                    onClick={() => {
-                                      queryClient.setQueryData(["/api/debug/session"], null);
-                                    }}
-                                  >
-                                    Close
-                                  </Button>
-                                </DialogFooter>
-                              </DialogContent>
-                            </Dialog>
-                          )}
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </CardContent>
-                </Card>
               </div>
             )}
-            
-            {/* Password Dialog */}
-            <Dialog open={isPasswordDialogOpen} onOpenChange={setIsPasswordDialogOpen}>
-              <DialogContent className="bg-[#36393F] text-white border-none">
-                <DialogHeader>
-                  <DialogTitle>Confirm Password</DialogTitle>
-                  <DialogDescription className="text-[#A3A6AA]">
-                    Please enter your password to save settings.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-1 text-[#DCDDDE]">Password</label>
-                  <Input
-                    type="password"
-                    placeholder="Enter your password"
-                    className="bg-[#202225] border-[#202225] text-white"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-                <DialogFooter>
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => {
-                      setIsPasswordDialogOpen(false);
-                      setPassword("");
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
-                    onClick={() => {
-                      if (!password) {
-                        toast({
-                          title: "Password Required",
-                          description: "Please enter your password to continue.",
-                          variant: "destructive"
-                        });
-                        return;
-                      }
-                      configMutation.mutate({ guildId, channelId, password });
-                    }}
-                    disabled={configMutation.isPending}
-                  >
-                    {configMutation.isPending ? "Saving..." : "Save Settings"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-            
-            {/* Restart Confirmation Dialog */}
-            <Dialog open={isConfirmRestartOpen} onOpenChange={setIsConfirmRestartOpen}>
-              <DialogContent className="bg-[#36393F] text-white border-none">
-                <DialogHeader>
-                  <DialogTitle>Confirm Bot Restart</DialogTitle>
-                  <DialogDescription className="text-[#A3A6AA]">
-                    Please enter your password to restart the bot.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="mb-4">
-                  <Alert className="bg-[#FFEEB3] text-black border-none">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Warning</AlertTitle>
-                    <AlertDescription>
-                      Restarting the bot will temporarily disrupt service.
-                    </AlertDescription>
-                  </Alert>
-                </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-1 text-[#DCDDDE]">Password</label>
-                  <Input
-                    type="password"
-                    placeholder="Enter your password"
-                    className="bg-[#202225] border-[#202225] text-white"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-                <DialogFooter>
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => {
-                      setIsConfirmRestartOpen(false);
-                      setPassword("");
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
-                    onClick={() => {
-                      if (!password) {
-                        toast({
-                          title: "Password Required",
-                          description: "Please enter your password to continue.",
-                          variant: "destructive"
-                        });
-                        return;
-                      }
-                      restartBotMutation.mutate(password);
-                    }}
-                    disabled={restartBotMutation.isPending}
-                  >
-                    {restartBotMutation.isPending ? "Restarting..." : "Restart Bot"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-            
-            {/* Shutdown Confirmation Dialog */}
-            <Dialog open={isConfirmShutdownOpen} onOpenChange={setIsConfirmShutdownOpen}>
-              <DialogContent className="bg-[#36393F] text-white border-none">
-                <DialogHeader>
-                  <DialogTitle>Confirm Bot Shutdown</DialogTitle>
-                  <DialogDescription className="text-[#A3A6AA]">
-                    Please enter your password to shut down the bot.
-                  </DialogDescription>
-                </DialogHeader>
-                <div className="mb-4">
-                  <Alert className="bg-[#F8A4A8] text-black border-none">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Caution</AlertTitle>
-                    <AlertDescription>
-                      Shutting down the bot will stop all operations until manually restarted.
-                    </AlertDescription>
-                  </Alert>
-                </div>
-                <div className="mb-4">
-                  <label className="block text-sm font-medium mb-1 text-[#DCDDDE]">Password</label>
-                  <Input
-                    type="password"
-                    placeholder="Enter your password"
-                    className="bg-[#202225] border-[#202225] text-white"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                  />
-                </div>
-                <DialogFooter>
-                  <Button 
-                    variant="ghost" 
-                    onClick={() => {
-                      setIsConfirmShutdownOpen(false);
-                      setPassword("");
-                    }}
-                  >
-                    Cancel
-                  </Button>
-                  <Button 
-                    variant="destructive"
-                    onClick={() => {
-                      if (!password) {
-                        toast({
-                          title: "Password Required",
-                          description: "Please enter your password to continue.",
-                          variant: "destructive"
-                        });
-                        return;
-                      }
-                      shutdownBotMutation.mutate(password);
-                    }}
-                    disabled={shutdownBotMutation.isPending}
-                  >
-                    {shutdownBotMutation.isPending ? "Shutting Down..." : "Shutdown Bot"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-            
-            {/* Reschedule Password Dialog */}
-            <Dialog open={isReschedulePasswordOpen} onOpenChange={setIsReschedulePasswordOpen}>
-              <DialogContent className="bg-[#36393F] text-white border-none">
-                <DialogHeader>
-                  <DialogTitle>Confirm Password</DialogTitle>
-                  <DialogDescription className="text-[#A3A6AA]">
-                    Please enter your password to reschedule a {selectedCubeType} challenge
-                  </DialogDescription>
-                </DialogHeader>
-                <Input
-                  type="password"
-                  placeholder="Enter password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="bg-[#202225] border-0 text-white"
-                />
-                <DialogFooter>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      setIsReschedulePasswordOpen(false);
-                      setPassword("");
-                    }}
-                    className="text-[#A3A6AA] hover:text-white hover:bg-[#2F3136]"
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      if (selectedCubeType && password) {
-                        rescheduleChallengeMutation.mutate({
-                          cubeType: selectedCubeType,
-                          password,
-                        });
-                        setIsReschedulePasswordOpen(false);
-                        setPassword("");
-                      }
-                    }}
-                    className="bg-[#5865F2] text-white hover:bg-[#4752C4]"
-                    disabled={rescheduleChallengeMutation.isPending || !password}
-                  >
-                    {rescheduleChallengeMutation.isPending ? "Rescheduling..." : "Reschedule"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
 
             {selectedTab === "threads" && (
               <div className="mb-6">
-                <div className="flex justify-between items-center mb-2">
-                  <h3 className="text-white font-semibold">
-                    Challenge Threads
-                  </h3>
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button
-                        className="bg-[#5865F2] hover:bg-[#4752C4] text-white text-xs"
-                        size="sm"
-                      >
-                        <Calendar className="mr-2 h-4 w-4" />
-                        Reschedule Challenge
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="bg-[#36393F] text-white border-none">
-                      <DialogHeader>
-                        <DialogTitle>Reschedule Challenge</DialogTitle>
-                        <DialogDescription className="text-[#A3A6AA]">
-                          Create a new challenge thread immediately.
-                        </DialogDescription>
-                      </DialogHeader>
-                      
-                      <div className="space-y-4 py-2">
-                        <div className="grid grid-cols-3 gap-2">
-                          <Button
-                            variant="outline"
-                            className="bg-[#202225] hover:bg-[#36393F] text-white border-[#202225]"
-                            onClick={() => {
-                              setSelectedCubeType("3x3");
-                              setIsReschedulePasswordOpen(true);
-                            }}
-                          >
-                            3x3
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="bg-[#202225] hover:bg-[#36393F] text-white border-[#202225]"
-                            onClick={() => {
-                              setSelectedCubeType("2x2");
-                              setIsReschedulePasswordOpen(true);
-                            }}
-                          >
-                            2x2
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="bg-[#202225] hover:bg-[#36393F] text-white border-[#202225]"
-                            onClick={() => {
-                              setSelectedCubeType("3x3 BLD");
-                              setIsReschedulePasswordOpen(true);
-                            }}
-                          >
-                            3x3 BLD
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="bg-[#202225] hover:bg-[#36393F] text-white border-[#202225]"
-                            onClick={() => {
-                              setSelectedCubeType("3x3 OH");
-                              setIsReschedulePasswordOpen(true);
-                            }}
-                          >
-                            3x3 OH
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="bg-[#202225] hover:bg-[#36393F] text-white border-[#202225]"
-                            onClick={() => {
-                              setSelectedCubeType("Skewb");
-                              setIsReschedulePasswordOpen(true);
-                            }}
-                          >
-                            Skewb
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="bg-[#202225] hover:bg-[#36393F] text-white border-[#202225]"
-                            onClick={() => {
-                              setSelectedCubeType("Pyraminx");
-                              setIsReschedulePasswordOpen(true);
-                            }}
-                          >
-                            Pyraminx
-                          </Button>
-                          <Button
-                            variant="outline"
-                            className="bg-[#202225] hover:bg-[#36393F] text-white border-[#202225]"
-                            onClick={() => {
-                              setSelectedCubeType("Clock");
-                              setIsReschedulePasswordOpen(true);
-                            }}
-                          >
-                            Clock
-                          </Button>
-                        </div>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-                
+                <h3 className="text-white font-semibold mb-2">
+                  Challenge Threads
+                </h3>
                 <Card className="bg-[#2F3136] border-0">
                   <CardContent className="p-4">
                     {threadsLoading ? (

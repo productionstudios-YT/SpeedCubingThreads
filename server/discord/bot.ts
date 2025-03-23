@@ -1,5 +1,5 @@
 import { Client, Events, GatewayIntentBits, TextChannel, ThreadChannel } from 'discord.js';
-import { BotConfig, ChallengeThread, InsertChallengeThread, daySchedule } from '@shared/schema';
+import { BotConfig, ChallengeThread, InsertChallengeThread } from '@shared/schema';
 import { storage } from '../storage';
 import { scrambleManager } from './scrambleManager';
 
@@ -67,27 +67,6 @@ class DiscordBot {
     }
     
     try {
-      // Check if we've already created a thread for today's cube type
-      const today = new Date();
-      const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD format
-      const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
-      const dayKeys = ['SUNDAY', 'MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY'] as const;
-      const todaysCubeType = daySchedule[dayKeys[dayOfWeek]];
-      
-      // Get all active threads for today
-      const activeThreads = await storage.getAllChallengeThreads();
-      const todaysThreadExists = activeThreads.some(thread => {
-        // Check if thread is for today and for today's cube type
-        const threadDate = new Date(thread.createdAt).toISOString().split('T')[0];
-        return threadDate === todayStr && thread.cubeType === todaysCubeType && !thread.isDeleted;
-      });
-      
-      // Skip if today's thread already exists
-      if (todaysThreadExists) {
-        console.log(`Thread for ${todaysCubeType} already exists for today (${todayStr}), skipping creation`);
-        return;
-      }
-      
       // Get the guild and channel
       const guild = await this.client.guilds.fetch(config.guildId);
       const channel = await guild.channels.fetch(config.channelId) as TextChannel;
@@ -163,7 +142,7 @@ class DiscordBot {
           await discordThread.delete();
           console.log(`Deleted expired thread: ${thread.threadId}`);
         }
-      } catch (error: any) {
+      } catch (error) {
         // Thread might already be deleted or inaccessible
         console.warn(`Thread ${thread.threadId} could not be deleted: ${error.message}`);
       }
