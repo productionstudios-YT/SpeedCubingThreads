@@ -15,7 +15,6 @@ type AuthContextType = {
   error: Error | null;
   loginMutation: UseMutationResult<User, Error, LoginData>;
   logoutMutation: UseMutationResult<void, Error, void>;
-  registerMutation: UseMutationResult<User, Error, LoginData>;
 };
 
 type LoginData = z.infer<typeof loginSchema>;
@@ -74,27 +73,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
     },
   });
-  
-  const registerMutation = useMutation({
-    mutationFn: async (credentials: LoginData) => {
-      const res = await apiRequest("POST", "/api/register", credentials);
-      return await res.json();
-    },
-    onSuccess: (user: User) => {
-      queryClient.setQueryData(["/api/auth/user"], user);
-      toast({
-        title: "Registration successful",
-        description: `Welcome, ${user.username}!`,
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Registration failed",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
 
   return (
     <AuthContext.Provider
@@ -104,7 +82,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         error,
         loginMutation,
         logoutMutation,
-        registerMutation,
       }}
     >
       {children}
