@@ -353,7 +353,7 @@ export default function Home() {
                         <p className="text-[#DCDDDE] mb-2">
                           This bot posts daily scramble challenges for different
                           cube types based on the day of the week. Challenges
-                          are posted at 4:00 PM IST and threads are
+                          are posted automatically and available 24/7, with threads
                           automatically deleted after 24 hours.
                         </p>
                         <div className="flex flex-wrap gap-2">

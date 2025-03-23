@@ -1,5 +1,5 @@
 import { Client, Events, GatewayIntentBits, TextChannel, ThreadChannel } from 'discord.js';
-import { BotConfig, ChallengeThread, InsertChallengeThread } from '@shared/schema';
+import { BotConfig, ChallengeThread, InsertChallengeThread, daySchedule } from '@shared/schema';
 import { storage } from '../storage';
 import { scrambleManager } from './scrambleManager';
 
@@ -163,7 +163,7 @@ class DiscordBot {
           await discordThread.delete();
           console.log(`Deleted expired thread: ${thread.threadId}`);
         }
-      } catch (error) {
+      } catch (error: any) {
         // Thread might already be deleted or inaccessible
         console.warn(`Thread ${thread.threadId} could not be deleted: ${error.message}`);
       }
