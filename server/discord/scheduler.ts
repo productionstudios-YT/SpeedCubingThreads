@@ -22,13 +22,13 @@ export class Scheduler {
   }
   
   /**
-   * Schedule daily scramble posts at 4:00 PM IST
-   * Cron format: minute hour * * *
-   * IST is UTC+5:30, so 10:30 UTC = 4:00 PM IST
+   * Schedule daily scramble posts to run 24/7
+   * Create a challenge post if one doesn't exist for today
    */
   private scheduleScramblePosts() {
-    // At 10:30 UTC (4:00 PM IST)
-    const job = cron.schedule('30 10 * * *', async () => {
+    // Run every hour to check if today's scramble is created
+    // This ensures the bot is always active and posts even after restarts
+    const job = cron.schedule('0 * * * *', async () => {
       try {
         console.log('Executing scheduled scramble post creation');
         const configs = await storage.getAllBotConfigs();
@@ -44,7 +44,7 @@ export class Scheduler {
     });
     
     this.cronJobs.set('dailyPost', job);
-    console.log('Daily scramble posts scheduled for 4:00 PM IST');
+    console.log('Daily scramble posts scheduler active - running 24/7');
   }
   
   /**

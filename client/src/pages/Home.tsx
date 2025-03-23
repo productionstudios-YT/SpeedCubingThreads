@@ -156,7 +156,7 @@ export default function Home() {
   
   const rescheduleChallengeMutation = useMutation({
     mutationFn: async (data: { cubeType: string; password: string }) => {
-      return apiRequest("/api/reschedule", "POST", data);
+      return apiRequest("POST", "/api/reschedule", data);
     },
     onSuccess: () => {
       toast({
@@ -331,7 +331,7 @@ export default function Home() {
             <span className="mr-2 text-[#A3A6AA]">#</span>
             <span className="font-bold">🗓•daily-scramble</span>
             <div className="ml-2 text-xs text-[#A3A6AA] bg-[#2F3136] py-0.5 px-2 rounded">
-              Daily Scrambles at 4:00 PM IST
+              Daily Scrambles Available 24/7
             </div>
           </div>
 
