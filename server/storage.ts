@@ -60,7 +60,16 @@ export class MemStorage implements IStorage {
   
   async createBotConfig(config: InsertBotConfig): Promise<BotConfig> {
     const id = this.botConfigCurrentId++;
-    const newConfig: BotConfig = { ...config, id };
+    // Ensure all required properties have values
+    const newConfig: BotConfig = { 
+      id,
+      channelId: config.channelId,
+      guildId: config.guildId,
+      timeToPost: config.timeToPost || "16:00", // Default: 4:00 PM
+      timezone: config.timezone || "Asia/Kolkata", // Default: IST
+      enabled: config.enabled !== undefined ? config.enabled : true, // Default: true
+      deleteAfterHours: config.deleteAfterHours || 24 // Default: 24 hours
+    };
     this.botConfigs.set(id, newConfig);
     return newConfig;
   }

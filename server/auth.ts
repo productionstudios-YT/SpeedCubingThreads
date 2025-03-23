@@ -13,9 +13,18 @@ import MemoryStore from "memorystore";
 const DEVELOPER_PASSWORD = "Dev@SpeedCube2025#";
 const OWNER_PASSWORD = "Owner@SpeedCube2025!";
 
+// Define express user interface
 declare global {
   namespace Express {
-    interface User extends User {}
+    // Define the User interface for Express.User
+    interface User {
+      id: number;
+      username: string;
+      passwordHash: string;
+      role: string;
+      createdAt: Date;
+      lastLogin: Date | null;
+    }
   }
 }
 
