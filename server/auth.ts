@@ -47,20 +47,21 @@ export async function setupAuth(app: Express) {
   // Session configuration
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "speedcube-scrambler-secret",
-    resave: true,
-    saveUninitialized: true,
+    resave: false,
+    saveUninitialized: false,
     rolling: true,
     store: new MemStore({
       checkPeriod: 86400000 // 24 hours
     }),
     cookie: {
-      secure: false, // Set to false for development, even in production since we're not using HTTPS
+      secure: false, // Set to false since we're not using HTTPS
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       sameSite: 'lax',
       path: '/',
-      httpOnly: true
+      httpOnly: true,
+      domain: undefined // Let the browser set this automatically
     },
-    name: 'sid' // Custom cookie name to avoid conflicts
+    name: 'connect.sid' // Use default name for better compatibility
   };
 
   // Initialize session management
@@ -163,7 +164,7 @@ export async function setupAuth(app: Express) {
       if (err) return next(err);
       req.session.destroy((err) => {
         if (err) return next(err);
-        res.clearCookie("sid"); // Match the cookie name we're using
+        res.clearCookie("connect.sid"); // Match the cookie name we're using
         res.sendStatus(200);
       });
     });
