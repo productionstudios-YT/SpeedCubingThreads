@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useLocation } from "wouter";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -17,11 +17,13 @@ export default function AuthPage() {
   const { user, loginMutation } = useAuth();
   const [, navigate] = useLocation();
 
-  // Redirect if the user is already logged in
-  if (user) {
-    navigate("/");
-    return null;
-  }
+  // Use effect for navigation to avoid React warning
+  // about updating state during render
+  useEffect(() => {
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
 
   return (
     <div className="flex min-h-screen">
