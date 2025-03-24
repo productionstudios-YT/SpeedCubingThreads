@@ -61,8 +61,8 @@ async function initializeServices() {
     if (configs.length === 0) {
       // Default config - will need to be updated via API
       await storage.createBotConfig({
-        channelId: process.env.DEFAULT_CHANNEL_ID || '',
-        guildId: process.env.DEFAULT_GUILD_ID || '',
+        channelId: "1295224323455582269", // Updated channel ID
+        guildId: process.env.DEFAULT_GUILD_ID || '', // Guild ID will need to be set via web UI
         timeToPost: "16:00", // 4:00 PM
         timezone: "Asia/Kolkata", // IST
         enabled: true,
