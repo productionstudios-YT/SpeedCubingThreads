@@ -44,24 +44,30 @@ async function comparePasswords(supplied: string, stored: string): Promise<boole
 export async function setupAuth(app: Express) {
   const MemStore = MemoryStore(session);
   
+  // Create a fixed CORS header middleware (will be applied to all session management routes)
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Credentials', 'true');
+    next();
+  });
+  
   // Session configuration
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "speedcube-scrambler-secret",
-    resave: false,
-    saveUninitialized: false,
+    resave: true,
+    saveUninitialized: true,
     rolling: true,
+    proxy: true,
     store: new MemStore({
       checkPeriod: 86400000 // 24 hours
     }),
     cookie: {
-      secure: false, // Set to false since we're not using HTTPS
+      secure: false,
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       sameSite: 'lax',
       path: '/',
-      httpOnly: true,
-      domain: undefined // Let the browser set this automatically
+      httpOnly: false // Allow JavaScript access to cookies for debugging
     },
-    name: 'connect.sid' // Use default name for better compatibility
+    name: 'replit_sid' // Use a custom name to avoid conflicts
   };
 
   // Initialize session management
@@ -164,7 +170,7 @@ export async function setupAuth(app: Express) {
       if (err) return next(err);
       req.session.destroy((err) => {
         if (err) return next(err);
-        res.clearCookie("connect.sid"); // Match the cookie name we're using
+        res.clearCookie("replit_sid"); // Match the cookie name we're using
         res.sendStatus(200);
       });
     });

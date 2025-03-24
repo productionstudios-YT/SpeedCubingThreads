@@ -6,8 +6,28 @@ import { scheduler } from "./discord/scheduler";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import cookieParser from "cookie-parser";
+import cors from "cors";
 
 const app = express();
+
+// Configure CORS to allow credentials
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow any origin to facilitate local development in Replit
+    callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+}));
+
+// Add additional headers for cookies
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Origin', req.headers.origin || '*');
+  next();
+});
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
