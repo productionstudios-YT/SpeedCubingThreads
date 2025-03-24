@@ -47,15 +47,15 @@ export async function setupAuth(app: Express) {
   // Session configuration
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "speedcube-scrambler-secret",
-    resave: true, // Change to true to ensure session is saved on each request
-    saveUninitialized: true, // Change to true to create session even if not modified
+    resave: true,
+    saveUninitialized: true,
     rolling: true,
     store: new MemStore({
       checkPeriod: 86400000 // 24 hours
     }),
     cookie: {
       secure: false, // Set to false for development, even in production since we're not using HTTPS
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       sameSite: 'lax',
       path: '/',
       httpOnly: true
@@ -87,16 +87,24 @@ export async function setupAuth(app: Express) {
   );
 
   // Serialize user ID to the session
-  passport.serializeUser((user, done) => {
+  passport.serializeUser((user: Express.User, done) => {
+    console.log('Serializing user:', user.id);
     done(null, user.id);
   });
 
   // Deserialize user from the session
   passport.deserializeUser(async (id: number, done) => {
     try {
+      console.log('Deserializing user ID:', id);
       const user = await storage.getUser(id);
+      if (!user) {
+        console.log('User not found during deserialization');
+        return done(null, false);
+      }
+      console.log('User deserialized successfully:', user.username);
       done(null, user);
     } catch (err) {
+      console.log('Error during deserialization:', err);
       done(err);
     }
   });
@@ -125,15 +133,26 @@ export async function setupAuth(app: Express) {
           return next(err);
         }
         
-        console.log('Login successful for:', user.username, 'Session ID:', req.sessionID);
-        
-        const userResponse = {
-          id: user.id,
-          username: user.username,
-          role: user.role
-        };
-        
-        res.json(userResponse);
+        // Save the session explicitly to ensure it's stored
+        req.session.save((err) => {
+          if (err) {
+            console.log('Session save error:', err);
+            return next(err);
+          }
+          
+          console.log('Login successful for:', user.username);
+          console.log('Session ID:', req.sessionID);
+          console.log('Session data:', req.session);
+          console.log('Cookies:', req.cookies);
+          
+          const userResponse = {
+            id: user.id,
+            username: user.username,
+            role: user.role
+          };
+          
+          res.json(userResponse);
+        });
       });
     })(req, res, next);
   });
@@ -152,11 +171,16 @@ export async function setupAuth(app: Express) {
 
   // Get current user
   app.get("/api/auth/user", (req, res) => {
+    console.log('Auth request received. Session ID:', req.sessionID);
+    console.log('Cookies:', req.cookies);
+    console.log('Session data:', req.session);
+    
     if (!req.isAuthenticated() || !req.user) {
       console.log('User not authenticated:', { 
         isAuthenticated: req.isAuthenticated(), 
         hasUser: !!req.user,
-        sessionID: req.sessionID
+        sessionID: req.sessionID,
+        session: req.session
       });
       return res.status(401).json({ message: "Not authenticated" });
     }
@@ -168,10 +192,18 @@ export async function setupAuth(app: Express) {
       sessionID: req.sessionID
     });
     
-    res.json({
-      id: user.id,
-      username: user.username,
-      role: user.role
+    // Refresh the session to extend its life
+    req.session.touch();
+    req.session.save((err) => {
+      if (err) {
+        console.log('Error saving session:', err);
+      }
+      
+      res.json({
+        id: user.id,
+        username: user.username,
+        role: user.role
+      });
     });
   });
   
@@ -195,9 +227,14 @@ export async function setupAuth(app: Express) {
 
 // Middleware to check if user is authenticated
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
+  console.log('Auth check - Session ID:', req.sessionID);
+  console.log('Auth check - Cookies:', req.cookies);
+  
   if (!req.isAuthenticated()) {
+    console.log('Auth check failed - not authenticated');
     return res.status(401).json({ message: "Authentication required" });
   }
+  console.log('Auth check passed - user is authenticated');
   next();
 }
 
