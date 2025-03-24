@@ -267,6 +267,12 @@ export default function Home() {
                             <i className="fas fa-calendar-alt mr-1"></i> Daily
                             Challenges
                           </span>
+                          <Button 
+                            className="bg-[#5865F2] hover:bg-[#4752C4] text-white text-xs px-2 py-1 rounded"
+                            onClick={() => createTestThread()}
+                          >
+                            <i className="fas fa-plus-circle mr-1"></i> Create Test Thread
+                          </Button>
                           <span className="bg-[#202225] text-xs px-2 py-1 rounded">
                             <i className="fas fa-cube mr-1"></i> Multiple Cube
                             Types

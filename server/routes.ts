@@ -101,6 +101,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Create a test thread using the currently configured channel and guild
+  apiRouter.post("/create-test-thread", requireAuth, async (req, res) => {
+    try {
+      const configs = await storage.getAllBotConfigs();
+      if (configs.length === 0) {
+        return res.status(400).json({ error: "No bot configuration found" });
+      }
+      
+      const config = configs[0];
+      const { guildId, channelId } = config;
+      const cubeType = req.body.cubeType || "3x3"; // Default to 3x3 if not specified
+      
+      if (!guildId || !channelId) {
+        return res.status(400).json({ error: "Guild ID or Channel ID not configured" });
+      }
+      
+      const threadId = await discordBot.createManualScrambleThread(guildId, channelId, cubeType);
+      res.status(201).json({ success: true, threadId, channelId, guildId });
+    } catch (error) {
+      console.error("Error creating test thread:", error);
+      res.status(500).json({ error: "Failed to create test thread", message: error.message });
+    }
+  });
+
   // Register the API router
   app.use("/api", apiRouter);
   
