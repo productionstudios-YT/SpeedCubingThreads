@@ -47,15 +47,16 @@ export async function setupAuth(app: Express) {
   // Session configuration
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "speedcube-scrambler-secret",
-    resave: false,
-    saveUninitialized: false,
+    resave: true,
+    saveUninitialized: true,
     store: new MemStore({
       checkPeriod: 86400000 // 24 hours
     }),
     cookie: {
       secure: false, // Set to false for development, even in production since we're not using HTTPS
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
-      sameSite: 'lax'
+      sameSite: 'lax',
+      path: '/'
     }
   };
 
@@ -102,26 +103,42 @@ export async function setupAuth(app: Express) {
 
   // API endpoints for authentication
   // Login endpoint
-  app.post("/api/login", passport.authenticate("local"), (req, res) => {
-    const user = req.user as User;
-    res.json({
-      id: user.id,
-      username: user.username,
-      role: user.role
-    });
+  app.post("/api/login", (req, res, next) => {
+    passport.authenticate("local", (err: any, user: User, info: { message?: string }) => {
+      if (err) return next(err);
+      if (!user) {
+        return res.status(401).json({ message: info?.message || "Authentication failed" });
+      }
+      
+      req.login(user, (err) => {
+        if (err) return next(err);
+        
+        const userResponse = {
+          id: user.id,
+          username: user.username,
+          role: user.role
+        };
+        
+        res.json(userResponse);
+      });
+    })(req, res, next);
   });
 
   // Logout endpoint
   app.post("/api/logout", (req, res, next) => {
     req.logout((err) => {
       if (err) return next(err);
-      res.sendStatus(200);
+      req.session.destroy((err) => {
+        if (err) return next(err);
+        res.clearCookie("connect.sid");
+        res.sendStatus(200);
+      });
     });
   });
 
   // Get current user
   app.get("/api/auth/user", (req, res) => {
-    if (!req.user) {
+    if (!req.isAuthenticated() || !req.user) {
       return res.status(401).json({ message: "Not authenticated" });
     }
     
