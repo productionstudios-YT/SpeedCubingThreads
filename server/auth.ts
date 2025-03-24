@@ -1,17 +1,16 @@
-import passport from "passport";
-import { Strategy as LocalStrategy } from "passport-local";
 import { Express, Request, Response, NextFunction } from "express";
-import session from "express-session";
-import { scrypt, randomBytes, timingSafeEqual } from "crypto";
-import { promisify } from "util";
 import { storage } from "./storage";
 import { User, userRoles } from "@shared/schema";
+import { scrypt, randomBytes, timingSafeEqual } from "crypto";
+import { promisify } from "util";
+import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import MemoryStore from "memorystore";
 
-// Strong passwords for development and owner accounts
+// Constants
 const DEVELOPER_PASSWORD = "Dev@SpeedCube2025#";
 const OWNER_PASSWORD = "Owner@SpeedCube2025!";
+const JWT_SECRET = process.env.JWT_SECRET || "speedcube-scrambler-jwt-secret";
+const JWT_EXPIRES_IN = "7d"; // 7 days
 
 // Define express user interface
 declare global {
@@ -28,231 +27,171 @@ declare global {
   }
 }
 
-const scryptAsync = promisify(scrypt);
-
-// Function to hash passwords
+// Function to hash a password
 async function hashPassword(password: string): Promise<string> {
   return bcrypt.hashSync(password, 10);
 }
 
-// Function to compare hashed passwords
+// Function to verify a password against a stored hash
 async function comparePasswords(supplied: string, stored: string): Promise<boolean> {
   return bcrypt.compareSync(supplied, stored);
 }
 
-// Function to set up authentication middleware
-export async function setupAuth(app: Express) {
-  const MemStore = MemoryStore(session);
+// Generate a JWT token for a user
+function generateToken(user: User): string {
+  const payload = {
+    id: user.id,
+    username: user.username,
+    role: user.role
+  };
   
-  // Create a fixed CORS header middleware (will be applied to all routes)
-  app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Credentials', 'true');
+  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+}
+
+// Extract and verify the JWT token from auth header
+function extractAndVerifyToken(req: Request): { id: number; username: string; role: string } | null {
+  try {
+    const authHeader = req.headers.authorization || '';
     
-    // Setup headers to help debug sessions in the browser
+    if (!authHeader.startsWith('Bearer ')) {
+      return null;
+    }
+    
+    const token = authHeader.split(' ')[1];
+    if (!token) {
+      return null;
+    }
+    
+    // Verify and decode the token
+    const decoded = jwt.verify(token, JWT_SECRET) as { id: number; username: string; role: string };
+    return decoded;
+  } catch (err) {
+    console.log('Token verification error:', err);
+    return null;
+  }
+}
+
+// Function to set up authentication 
+export async function setupAuth(app: Express) {
+  // Setup CORS headers for auth routes
+  app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+    
+    // Debug headers for auth routes
     if (req.path === '/api/login' || req.path === '/api/auth/user') {
-      console.log('Request to authed route from origin:', req.headers.origin);
-      console.log('Request headers:', req.headers);
+      console.log('Request to auth route from origin:', req.headers.origin);
+      console.log('Auth headers:', req.headers.authorization);
+    }
+    
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
     }
     
     next();
   });
   
-  // Session configuration
-  const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || "speedcube-scrambler-secret-v2",
-    resave: false,
-    saveUninitialized: false,
-    rolling: true,
-    proxy: true,
-    store: new MemStore({
-      checkPeriod: 86400000 // 24 hours
-    }),
-    cookie: {
-      secure: false,
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      sameSite: 'lax',
-      path: '/',
-      httpOnly: false // Allow JavaScript access to cookies for debugging
-    },
-    name: 'speedcube_session' // Distinctive name
-  };
-
-  // Initialize session management
-  app.use(session(sessionSettings));
-  app.use(passport.initialize());
-  app.use(passport.session());
-
-  // Set up local authentication strategy
-  passport.use(
-    new LocalStrategy(async (username, password, done) => {
-      try {
-        const user = await storage.getUserByUsername(username);
-        if (!user || !(await comparePasswords(password, user.passwordHash))) {
-          return done(null, false, { message: "Invalid username or password" });
-        }
-        
-        // Update last login timestamp
-        await storage.updateUserLastLogin(user.id);
-        return done(null, user);
-      } catch (err) {
-        return done(err);
-      }
-    })
-  );
-
-  // Serialize user ID to the session
-  passport.serializeUser((user: Express.User, done) => {
-    console.log('Serializing user:', user.id);
-    done(null, user.id);
-  });
-
-  // Deserialize user from the session
-  passport.deserializeUser(async (id: number, done) => {
-    try {
-      console.log('Deserializing user ID:', id);
-      const user = await storage.getUser(id);
-      if (!user) {
-        console.log('User not found during deserialization');
-        return done(null, false);
-      }
-      console.log('User deserialized successfully:', user.username);
-      done(null, user);
-    } catch (err) {
-      console.log('Error during deserialization:', err);
-      done(err);
-    }
-  });
-
   // Create initial users if they don't exist
   await createInitialUsers();
 
-  // API endpoints for authentication
-  // Login endpoint
-  app.post("/api/login", (req, res, next) => {
-    console.log('Login attempt for user:', req.body.username);
-    
-    passport.authenticate("local", (err: any, user: User, info: { message?: string }) => {
-      if (err) {
-        console.log('Login error:', err);
-        return next(err);
-      }
-      if (!user) {
-        console.log('Login failed - invalid credentials');
-        return res.status(401).json({ message: info?.message || "Authentication failed" });
+  // Login endpoint - exchange credentials for JWT token
+  app.post("/api/login", async (req, res) => {
+    try {
+      const { username, password } = req.body;
+      
+      if (!username || !password) {
+        return res.status(400).json({ message: "Username and password are required" });
       }
       
-      req.login(user, (err) => {
-        if (err) {
-          console.log('Login session error:', err);
-          return next(err);
-        }
-        
-        // Save the session explicitly to ensure it's stored
-        req.session.save((err) => {
-          if (err) {
-            console.log('Session save error:', err);
-            return next(err);
-          }
-          
-          console.log('Login successful for:', user.username);
-          console.log('Session ID:', req.sessionID);
-          console.log('Session data:', req.session);
-          console.log('Cookies:', req.cookies);
-          
-          const userResponse = {
-            id: user.id,
-            username: user.username,
-            role: user.role
-          };
-          
-          res.json(userResponse);
-        });
-      });
-    })(req, res, next);
-  });
-
-  // Logout endpoint
-  app.post("/api/logout", (req, res, next) => {
-    console.log('Logout request received. Session ID:', req.sessionID);
-    
-    req.logout((err) => {
-      if (err) return next(err);
-      req.session.destroy((err) => {
-        if (err) return next(err);
-        res.clearCookie("speedcube_session", { path: "/" }); // Match the cookie name we're using
-        console.log('Session destroyed and cookie cleared');
-        res.sendStatus(200);
-      });
-    });
-  });
-
-  // Get current user
-  app.get("/api/auth/user", (req, res) => {
-    console.log('Auth request received. Session ID:', req.sessionID);
-    console.log('Cookies:', req.cookies);
-    console.log('Session data:', req.session);
-    
-    if (!req.isAuthenticated() || !req.user) {
-      console.log('User not authenticated:', { 
-        isAuthenticated: req.isAuthenticated(), 
-        hasUser: !!req.user,
-        sessionID: req.sessionID,
-        session: req.session
-      });
-      return res.status(401).json({ message: "Not authenticated" });
-    }
-    
-    const user = req.user as User;
-    console.log('User authenticated:', { 
-      id: user.id, 
-      username: user.username,
-      sessionID: req.sessionID
-    });
-    
-    // Refresh the session to extend its life
-    req.session.touch();
-    req.session.save((err) => {
-      if (err) {
-        console.log('Error saving session:', err);
+      console.log('Login attempt for user:', username);
+      
+      // Find user by username
+      const user = await storage.getUserByUsername(username);
+      
+      if (!user || !(await comparePasswords(password, user.passwordHash))) {
+        console.log('Login failed - invalid credentials');
+        return res.status(401).json({ message: "Invalid username or password" });
       }
+      
+      // Update last login timestamp
+      await storage.updateUserLastLogin(user.id);
+      
+      // Generate JWT token
+      const token = generateToken(user);
+      
+      console.log('Login successful for:', user.username);
+      
+      // Send token and user info
+      res.json({
+        token,
+        user: {
+          id: user.id,
+          username: user.username,
+          role: user.role
+        }
+      });
+    } catch (err) {
+      console.log('Login error:', err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  });
+
+  // Get current user from token
+  app.get("/api/auth/user", (req, res) => {
+    try {
+      const userData = extractAndVerifyToken(req);
+      
+      if (!userData) {
+        console.log('Auth check failed - invalid or missing token');
+        return res.status(401).json({ message: "Not authenticated" });
+      }
+      
+      console.log('User authenticated from token:', userData.username);
       
       res.json({
-        id: user.id,
-        username: user.username,
-        role: user.role
+        id: userData.id,
+        username: userData.username,
+        role: userData.role
       });
-    });
+    } catch (err) {
+      console.log('Auth check error:', err);
+      res.status(500).json({ message: "Internal server error" });
+    }
   });
   
-  // Debug endpoint to check session
-  app.get("/api/debug/session", (req, res) => {
-    console.log('Session debug info:', {
-      sessionID: req.sessionID,
-      isAuthenticated: req.isAuthenticated(),
-      hasUser: !!req.user,
-      cookies: req.cookies,
-      session: req.session
-    });
+  // Debug endpoint
+  app.get("/api/debug/auth", (req, res) => {
+    const authHeader = req.headers.authorization || '';
     
     res.json({
-      sessionActive: !!req.sessionID,
-      isAuthenticated: req.isAuthenticated(),
-      hasUser: !!req.user
+      hasAuthHeader: !!authHeader,
+      authHeader: authHeader ? `${authHeader.substring(0, 10)}...` : '',
+      isValid: !!extractAndVerifyToken(req)
     });
   });
 }
 
-// Middleware to check if user is authenticated
+// Middleware to check if user is authenticated via JWT
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  console.log('Auth check - Session ID:', req.sessionID);
-  console.log('Auth check - Cookies:', req.cookies);
-  
-  if (!req.isAuthenticated()) {
-    console.log('Auth check failed - not authenticated');
-    return res.status(401).json({ message: "Authentication required" });
+  try {
+    const userData = extractAndVerifyToken(req);
+    
+    if (!userData) {
+      console.log('Auth check failed - invalid or missing token');
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    
+    // Add user data to request object for use in protected routes
+    (req as any).user = userData;
+    
+    console.log('Auth check passed - user authenticated:', userData.username);
+    next();
+  } catch (err) {
+    console.log('Auth check error:', err);
+    res.status(500).json({ message: "Internal server error" });
   }
-  console.log('Auth check passed - user is authenticated');
-  next();
 }
 
 // Create initial developer and owner accounts

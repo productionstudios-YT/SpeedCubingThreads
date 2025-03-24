@@ -7,16 +7,20 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+// Get the auth token from localStorage
+const TOKEN_STORAGE_KEY = "speedcube_auth_token";
+
+function getAuthToken(): string | null {
+  return localStorage.getItem(TOKEN_STORAGE_KEY);
+}
+
 export async function apiRequest(
   method: string,
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
   // Create a detailed log for debugging authentication issues
-  console.log(`Making ${method} request to ${url} with credentials included`);
-  
-  // Log cookies before the request
-  console.log("Available browser cookies:", document.cookie);
+  console.log(`Making ${method} request to ${url}`);
   
   // Use consistent headers across all requests
   const headers: Record<string, string> = {
@@ -31,11 +35,19 @@ export async function apiRequest(
     headers["Content-Type"] = "application/json";
   }
   
+  // Add auth token if it exists
+  const token = getAuthToken();
+  if (token) {
+    console.log("Adding auth token to request");
+    headers["Authorization"] = `Bearer ${token}`;
+  } else {
+    console.log("No auth token available");
+  }
+  
   const res = await fetch(url, {
     method,
     headers,
     body: data ? JSON.stringify(data) : undefined,
-    credentials: "include", // This ensures cookies are sent with the request
     cache: "no-store"
   });
 
@@ -57,26 +69,34 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const url = queryKey[0] as string;
-    console.log(`Making query request to ${url} with credentials included`);
+    console.log(`Making query request to ${url}`);
     
-    // Try to log document.cookie to debug what cookies are available
-    console.log("Available browser cookies:", document.cookie);
+    // Build headers with authentication token if available
+    const headers: Record<string, string> = {
+      "Cache-Control": "no-cache",
+      "Pragma": "no-cache",
+      "X-Requested-With": "XMLHttpRequest",
+      "Accept": "application/json"
+    };
     
-    // Use consistent headers across all requests
+    // Add auth token if it exists
+    const token = getAuthToken();
+    if (token) {
+      console.log("Adding auth token to query request");
+      headers["Authorization"] = `Bearer ${token}`;
+    } else {
+      console.log("No auth token available for query");
+    }
+    
+    // Make the request
     const res = await fetch(url, {
-      credentials: "include",
-      headers: {
-        "Cache-Control": "no-cache",
-        "Pragma": "no-cache",
-        "X-Requested-With": "XMLHttpRequest",
-        "Accept": "application/json"
-      },
-      // Add a random parameter to avoid caching issues
+      headers,
       cache: "no-store"
     });
 
     console.log(`Response from ${url}: status ${res.status}`);
     
+    // Handle unauthorized based on configuration
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       console.log(`Auth required for ${url} but returning null as configured`);
       return null;
