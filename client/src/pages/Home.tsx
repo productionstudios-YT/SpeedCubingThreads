@@ -55,7 +55,7 @@ export default function Home() {
 
   const configMutation = useMutation({
     mutationFn: async (data: { guildId: string; channelId: string }) => {
-      return apiRequest("/api/config", "POST", {
+      return apiRequest("POST", "/api/config", {
         guildId: data.guildId,
         channelId: data.channelId,
         enabled: true,
