@@ -17,12 +17,19 @@ export default function AuthPage() {
   const { user, loginMutation } = useAuth();
   const [, navigate] = useLocation();
 
-  // Use effect for navigation to avoid React warning
-  // about updating state during render
+  // Use effect for navigation and cookie debug
   useEffect(() => {
     if (user) {
       navigate("/");
     }
+    // Debug: Log available cookies on component mount and every 3 seconds
+    console.log("Auth page - Available cookies:", document.cookie);
+    
+    const interval = setInterval(() => {
+      console.log("Auth page cookie check:", document.cookie);
+    }, 3000);
+    
+    return () => clearInterval(interval);
   }, [user, navigate]);
 
   return (
@@ -100,6 +107,31 @@ function LoginForm({ isLoading, onSubmit }: { isLoading: boolean; onSubmit: (dat
     },
   });
 
+  // Handle form submission with debugging
+  const handleSubmit = async (data: z.infer<typeof loginSchema>) => {
+    console.log("Login attempt with username:", data.username);
+    console.log("Cookies before login:", document.cookie);
+    
+    // Call the original submit function from props
+    onSubmit(data);
+    
+    // Add a timeout to check for cookies after the request
+    setTimeout(() => {
+      console.log("Cookies after login attempt:", document.cookie);
+    }, 1000);
+  };
+
+  // Add function to test predefined credentials
+  const fillTestCredentials = (role: 'developer' | 'owner') => {
+    if (role === 'developer') {
+      form.setValue('username', 'developer');
+      form.setValue('password', 'Dev@SpeedCube2025#');
+    } else {
+      form.setValue('username', 'owner');
+      form.setValue('password', 'Owner@SpeedCube2025!');
+    }
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -110,7 +142,7 @@ function LoginForm({ isLoading, onSubmit }: { isLoading: boolean; onSubmit: (dat
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
             <FormField
               control={form.control}
               name="username"
@@ -141,6 +173,26 @@ function LoginForm({ isLoading, onSubmit }: { isLoading: boolean; onSubmit: (dat
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Login
             </Button>
+            <div className="flex gap-2 mt-4">
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                className="flex-1 text-xs"
+                onClick={() => fillTestCredentials('developer')}
+              >
+                Use Developer
+              </Button>
+              <Button 
+                type="button" 
+                variant="outline" 
+                size="sm" 
+                className="flex-1 text-xs"
+                onClick={() => fillTestCredentials('owner')}
+              >
+                Use Owner
+              </Button>
+            </div>
           </form>
         </Form>
       </CardContent>

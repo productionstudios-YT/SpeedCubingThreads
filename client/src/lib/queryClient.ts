@@ -15,11 +15,28 @@ export async function apiRequest(
   // Create a detailed log for debugging authentication issues
   console.log(`Making ${method} request to ${url} with credentials included`);
   
+  // Log cookies before the request
+  console.log("Available browser cookies:", document.cookie);
+  
+  // Use consistent headers across all requests
+  const headers: Record<string, string> = {
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
+    "X-Requested-With": "XMLHttpRequest",
+    "Accept": "application/json"
+  };
+  
+  // Add content type for requests with body
+  if (data) {
+    headers["Content-Type"] = "application/json";
+  }
+  
   const res = await fetch(url, {
     method,
-    headers: data ? { "Content-Type": "application/json" } : {},
+    headers,
     body: data ? JSON.stringify(data) : undefined,
     credentials: "include", // This ensures cookies are sent with the request
+    cache: "no-store"
   });
 
   // Log the response status
@@ -42,16 +59,20 @@ export const getQueryFn: <T>(options: {
     const url = queryKey[0] as string;
     console.log(`Making query request to ${url} with credentials included`);
     
-    // Try to log document.cookie to debug what cookies are available (in non-HttpOnly)
-    console.log("Available non-HttpOnly cookies:", document.cookie);
+    // Try to log document.cookie to debug what cookies are available
+    console.log("Available browser cookies:", document.cookie);
     
+    // Use consistent headers across all requests
     const res = await fetch(url, {
       credentials: "include",
-      // Add cache busting to prevent caching issues
       headers: {
         "Cache-Control": "no-cache",
-        "Pragma": "no-cache"
-      }
+        "Pragma": "no-cache",
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "application/json"
+      },
+      // Add a random parameter to avoid caching issues
+      cache: "no-store"
     });
 
     console.log(`Response from ${url}: status ${res.status}`);

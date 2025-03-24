@@ -44,17 +44,24 @@ async function comparePasswords(supplied: string, stored: string): Promise<boole
 export async function setupAuth(app: Express) {
   const MemStore = MemoryStore(session);
   
-  // Create a fixed CORS header middleware (will be applied to all session management routes)
+  // Create a fixed CORS header middleware (will be applied to all routes)
   app.use((req, res, next) => {
     res.header('Access-Control-Allow-Credentials', 'true');
+    
+    // Setup headers to help debug sessions in the browser
+    if (req.path === '/api/login' || req.path === '/api/auth/user') {
+      console.log('Request to authed route from origin:', req.headers.origin);
+      console.log('Request headers:', req.headers);
+    }
+    
     next();
   });
   
   // Session configuration
   const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || "speedcube-scrambler-secret",
-    resave: true,
-    saveUninitialized: true,
+    secret: process.env.SESSION_SECRET || "speedcube-scrambler-secret-v2",
+    resave: false,
+    saveUninitialized: false,
     rolling: true,
     proxy: true,
     store: new MemStore({
@@ -67,7 +74,7 @@ export async function setupAuth(app: Express) {
       path: '/',
       httpOnly: false // Allow JavaScript access to cookies for debugging
     },
-    name: 'replit_sid' // Use a custom name to avoid conflicts
+    name: 'speedcube_session' // Distinctive name
   };
 
   // Initialize session management
@@ -166,11 +173,14 @@ export async function setupAuth(app: Express) {
 
   // Logout endpoint
   app.post("/api/logout", (req, res, next) => {
+    console.log('Logout request received. Session ID:', req.sessionID);
+    
     req.logout((err) => {
       if (err) return next(err);
       req.session.destroy((err) => {
         if (err) return next(err);
-        res.clearCookie("replit_sid"); // Match the cookie name we're using
+        res.clearCookie("speedcube_session", { path: "/" }); // Match the cookie name we're using
+        console.log('Session destroyed and cookie cleared');
         res.sendStatus(200);
       });
     });
