@@ -47,8 +47,8 @@ export async function setupAuth(app: Express) {
   // Session configuration
   const sessionSettings: session.SessionOptions = {
     secret: process.env.SESSION_SECRET || "speedcube-scrambler-secret",
-    resave: false,
-    saveUninitialized: false,
+    resave: true, // Change to true to ensure session is saved on each request
+    saveUninitialized: true, // Change to true to create session even if not modified
     rolling: true,
     store: new MemStore({
       checkPeriod: 86400000 // 24 hours
@@ -107,14 +107,25 @@ export async function setupAuth(app: Express) {
   // API endpoints for authentication
   // Login endpoint
   app.post("/api/login", (req, res, next) => {
+    console.log('Login attempt for user:', req.body.username);
+    
     passport.authenticate("local", (err: any, user: User, info: { message?: string }) => {
-      if (err) return next(err);
+      if (err) {
+        console.log('Login error:', err);
+        return next(err);
+      }
       if (!user) {
+        console.log('Login failed - invalid credentials');
         return res.status(401).json({ message: info?.message || "Authentication failed" });
       }
       
       req.login(user, (err) => {
-        if (err) return next(err);
+        if (err) {
+          console.log('Login session error:', err);
+          return next(err);
+        }
+        
+        console.log('Login successful for:', user.username, 'Session ID:', req.sessionID);
         
         const userResponse = {
           id: user.id,
@@ -142,14 +153,42 @@ export async function setupAuth(app: Express) {
   // Get current user
   app.get("/api/auth/user", (req, res) => {
     if (!req.isAuthenticated() || !req.user) {
+      console.log('User not authenticated:', { 
+        isAuthenticated: req.isAuthenticated(), 
+        hasUser: !!req.user,
+        sessionID: req.sessionID
+      });
       return res.status(401).json({ message: "Not authenticated" });
     }
     
     const user = req.user as User;
+    console.log('User authenticated:', { 
+      id: user.id, 
+      username: user.username,
+      sessionID: req.sessionID
+    });
+    
     res.json({
       id: user.id,
       username: user.username,
       role: user.role
+    });
+  });
+  
+  // Debug endpoint to check session
+  app.get("/api/debug/session", (req, res) => {
+    console.log('Session debug info:', {
+      sessionID: req.sessionID,
+      isAuthenticated: req.isAuthenticated(),
+      hasUser: !!req.user,
+      cookies: req.cookies,
+      session: req.session
+    });
+    
+    res.json({
+      sessionActive: !!req.sessionID,
+      isAuthenticated: req.isAuthenticated(),
+      hasUser: !!req.user
     });
   });
 }
