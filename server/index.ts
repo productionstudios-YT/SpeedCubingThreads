@@ -5,10 +5,12 @@ import { discordBot } from "./discord/bot";
 import { scheduler } from "./discord/scheduler";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
+import cookieParser from "cookie-parser";
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(cookieParser());
 
 // Middleware for logging
 app.use((req, res, next) => {
