@@ -119,9 +119,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       const threadId = await discordBot.createManualScrambleThread(guildId, channelId, cubeType);
       res.status(201).json({ success: true, threadId, channelId, guildId });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error creating test thread:", error);
-      res.status(500).json({ error: "Failed to create test thread", message: error.message });
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      res.status(500).json({ error: "Failed to create test thread", message: errorMessage });
     }
   });
 
