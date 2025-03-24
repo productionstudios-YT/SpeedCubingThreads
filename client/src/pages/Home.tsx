@@ -14,10 +14,25 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { CubeType, ChallengeThread } from "@shared/schema";
+import { CubeType, ChallengeThread, BotConfig } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+
+// Types for API responses
+interface HealthResponse {
+  status: string;
+  botStatus: string;
+  timestamp: string;
+}
+
+interface NextChallengeResponse {
+  day: string;
+  cubeType: string;
+  nextTime: string;
+  timeUntil: string;
+  isToday: boolean;
+}
 
 export default function Home() {
   const [selectedTab, setSelectedTab] = useState<"bot" | "schedule" | "threads" | "settings">(
@@ -25,22 +40,23 @@ export default function Home() {
   );
   const [channelId, setChannelId] = useState("");
   const [guildId, setGuildId] = useState("");
+  const [isCreatingTestThread, setIsCreatingTestThread] = useState(false);
   const { toast } = useToast();
 
-  const { data: healthData, isLoading: healthLoading } = useQuery({
+  const { data: healthData, isLoading: healthLoading } = useQuery<HealthResponse>({
     queryKey: ["/api/health"],
     refetchInterval: 60000, // Refresh every minute
   });
 
-  const { data: threadsData, isLoading: threadsLoading } = useQuery({
+  const { data: threadsData, isLoading: threadsLoading } = useQuery<ChallengeThread[]>({
     queryKey: ["/api/threads"],
   });
 
-  const { data: nextChallengeData, isLoading: nextChallengeLoading } = useQuery({
+  const { data: nextChallengeData, isLoading: nextChallengeLoading } = useQuery<NextChallengeResponse>({
     queryKey: ["/api/next-challenge"],
   });
   
-  const { data: configData } = useQuery({
+  const { data: configData } = useQuery<BotConfig[]>({
     queryKey: ["/api/config"],
   });
   
@@ -79,6 +95,37 @@ export default function Home() {
       });
     }
   });
+  
+  // Mutation for creating a test thread
+  const testThreadMutation = useMutation({
+    mutationFn: async (cubeType?: string) => {
+      return apiRequest("POST", "/api/create-test-thread", { cubeType });
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/threads"] });
+      toast({
+        title: "Test Thread Created",
+        description: `Thread created successfully in channel #🗓•daily-scramble`,
+      });
+      setIsCreatingTestThread(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to create test thread: ${error.message}`,
+        variant: "destructive",
+      });
+      setIsCreatingTestThread(false);
+    }
+  });
+  
+  // Function to create a test thread
+  const createTestThread = () => {
+    if (isCreatingTestThread) return;
+    
+    setIsCreatingTestThread(true);
+    testThreadMutation.mutate("3x3"); // Default to 3x3 scramble
+  };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -270,8 +317,17 @@ export default function Home() {
                           <Button 
                             className="bg-[#5865F2] hover:bg-[#4752C4] text-white text-xs px-2 py-1 rounded"
                             onClick={() => createTestThread()}
+                            disabled={isCreatingTestThread}
                           >
-                            <i className="fas fa-plus-circle mr-1"></i> Create Test Thread
+                            {isCreatingTestThread ? (
+                              <>
+                                <i className="fas fa-spinner fa-spin mr-1"></i> Creating...
+                              </>
+                            ) : (
+                              <>
+                                <i className="fas fa-plus-circle mr-1"></i> Create Test Thread
+                              </>
+                            )}
                           </Button>
                           <span className="bg-[#202225] text-xs px-2 py-1 rounded">
                             <i className="fas fa-cube mr-1"></i> Multiple Cube
