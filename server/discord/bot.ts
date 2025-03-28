@@ -115,7 +115,38 @@ class DiscordBot {
         )
         .setFooter({ text: `Last updated: ${new Date().toLocaleString()}` });
       
-      await interaction.editReply({ embeds: [embed] });
+      // Create a table of recent activity logs
+      let recentThreadsTable = '```\n';
+      recentThreadsTable += '| Date       | Type    | Status   | Thread ID           |\n';
+      recentThreadsTable += '|------------|---------|----------|--------------------|\n';
+      
+      // Sort threads by ID (as a proxy for creation time) since we're using in-memory storage
+      // When using a database, we would sort by createdAt timestamp
+      const sortedThreads = [...activeThreads]
+        .sort((a, b) => b.id - a.id) // Sort by ID (newest first)
+        .slice(0, 5);
+        
+      if (sortedThreads.length === 0) {
+        recentThreadsTable += '| No recent activity logs available                    |\n';
+      } else {
+        sortedThreads.forEach(thread => {
+          // Format date (use current date as fallback - in real DB this would be the createdAt)
+          const date = new Date().toLocaleDateString();
+          const status = thread.isDeleted ? 'Deleted' : 'Active';
+          const threadIdTruncated = thread.threadId.substring(0, 18);
+          recentThreadsTable += `| ${date.padEnd(10)} | ${thread.cubeType.padEnd(7)} | ${status.padEnd(8)} | ${threadIdTruncated} |\n`;
+        });
+      }
+      
+      recentThreadsTable += '```';
+      
+      // Create an additional embed for the logs table
+      const logsEmbed = new EmbedBuilder()
+        .setTitle('📋 Recent Activity Logs')
+        .setDescription(recentThreadsTable)
+        .setColor(0x3498DB);
+      
+      await interaction.editReply({ embeds: [embed, logsEmbed] });
     } catch (error) {
       console.error('Error handling daily command:', error);
       try {
