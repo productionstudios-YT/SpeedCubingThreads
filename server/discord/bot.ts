@@ -1,7 +1,8 @@
-import { Client, Events, GatewayIntentBits, TextChannel, ThreadChannel } from 'discord.js';
+import { Client, Events, GatewayIntentBits, TextChannel, ThreadChannel, SlashCommandBuilder, REST, Routes, ChatInputCommandInteraction, CommandInteraction, EmbedBuilder, ActivityType } from 'discord.js';
 import { BotConfig, ChallengeThread, InsertChallengeThread } from '@shared/schema';
 import { storage } from '../storage';
 import { scrambleManager } from './scrambleManager';
+import { scheduler } from './scheduler';
 
 class DiscordBot {
   private client: Client;
@@ -25,14 +26,104 @@ class DiscordBot {
    * Set up event handlers for the Discord client
    */
   private setupEventHandlers() {
-    this.client.once(Events.ClientReady, (c) => {
+    this.client.once(Events.ClientReady, async (c) => {
       console.log(`Ready! Logged in as ${c.user.tag}`);
       this.isReady = true;
+      
+      // Set bot status
+      this.client.user?.setActivity({
+        name: 'Daily Cube Challenges',
+        type: ActivityType.Playing
+      });
+      
+      // Register slash commands
+      await this.registerCommands();
     });
     
     this.client.on(Events.Error, (error) => {
       console.error('Discord client error:', error);
     });
+    
+    // Handle interaction events (slash commands)
+    this.client.on(Events.InteractionCreate, async (interaction) => {
+      if (!interaction.isChatInputCommand()) return;
+      
+      if (interaction.commandName === 'daily') {
+        await this.handleDailyCommand(interaction);
+      }
+    });
+  }
+  
+  /**
+   * Register the bot's slash commands with Discord
+   */
+  private async registerCommands() {
+    if (!this.client.user) {
+      console.error('Cannot register commands: Client user is null');
+      return;
+    }
+    
+    try {
+      const commands = [
+        new SlashCommandBuilder()
+          .setName('daily')
+          .setDescription('Show information about the daily scramble bot status')
+      ];
+      
+      const rest = new REST().setToken(process.env.DISCORD_TOKEN || '');
+      
+      console.log('Started refreshing application (/) commands');
+      
+      await rest.put(
+        Routes.applicationCommands(this.client.user.id),
+        { body: commands }
+      );
+      
+      console.log('Successfully registered application (/) commands');
+    } catch (error) {
+      console.error('Error registering slash commands:', error);
+    }
+  }
+  
+  /**
+   * Handle the /daily command to show bot status information
+   */
+  private async handleDailyCommand(interaction: ChatInputCommandInteraction) {
+    try {
+      await interaction.deferReply();
+      
+      // Get bot status info
+      const isOnline = this.isReady;
+      const nextChallenge = scheduler.getNextScheduledChallenge();
+      const configs = await storage.getAllBotConfigs();
+      const activeThreads = await storage.getAllChallengeThreads();
+      const activeThreadCount = activeThreads.filter(t => !t.isDeleted).length;
+      
+      // Create a rich embed message
+      const embed = new EmbedBuilder()
+        .setTitle('🧊 Daily Scramble Bot Status')
+        .setColor(isOnline ? 0x57F287 : 0xED4245)
+        .setDescription(`The bot is currently **${isOnline ? 'online' : 'offline'}**. Here's the current status report.`)
+        .addFields(
+          { name: '🤖 Bot Status', value: isOnline ? 'Online and operational' : 'Offline', inline: true },
+          { name: '⏰ Next Challenge', value: `${nextChallenge.day}'s ${nextChallenge.cubeType} (in ${nextChallenge.timeUntil})`, inline: true },
+          { name: '🧵 Active Threads', value: `${activeThreadCount} thread(s)`, inline: true },
+          { name: '⚙️ Configuration', value: configs.length > 0 ? 
+              `• Guild: ${configs[0].guildId}\n• Channel: ${configs[0].channelId}\n• Auto-delete: ${configs[0].deleteAfterHours}h` : 
+              'Not configured', inline: false },
+          { name: '📆 Current Schedule', value: 'Mon: Skewb\nTue: 3x3 BLD\nWed: 2x2\nThu: 3x3\nFri: Pyraminx\nSat: 3x3 OH\nSun: Clock', inline: false }
+        )
+        .setFooter({ text: `Last updated: ${new Date().toLocaleString()}` });
+      
+      await interaction.editReply({ embeds: [embed] });
+    } catch (error) {
+      console.error('Error handling daily command:', error);
+      try {
+        await interaction.editReply('An error occurred while retrieving bot status information. Please try again later.');
+      } catch (replyError) {
+        console.error('Error sending error reply:', replyError);
+      }
+    }
   }
   
   /**
