@@ -41,6 +41,7 @@ export default function Home() {
   const [channelId, setChannelId] = useState("");
   const [guildId, setGuildId] = useState("");
   const [isCreatingTestThread, setIsCreatingTestThread] = useState(false);
+  const [isTriggeringDailyPost, setIsTriggeringDailyPost] = useState(false);
   const { toast } = useToast();
 
   const { data: healthData, isLoading: healthLoading } = useQuery<HealthResponse>({
@@ -119,12 +120,43 @@ export default function Home() {
     }
   });
   
+  // Mutation for triggering daily post
+  const triggerDailyPostMutation = useMutation({
+    mutationFn: async () => {
+      return apiRequest("POST", "/api/trigger-daily-post", {});
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/threads"] });
+      toast({
+        title: "Daily Post Triggered",
+        description: `Daily post has been triggered successfully for today's cube type`,
+      });
+      setIsTriggeringDailyPost(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to trigger daily post: ${error.message}`,
+        variant: "destructive",
+      });
+      setIsTriggeringDailyPost(false);
+    }
+  });
+  
   // Function to create a test thread
   const createTestThread = () => {
     if (isCreatingTestThread) return;
     
     setIsCreatingTestThread(true);
     testThreadMutation.mutate("3x3"); // Default to 3x3 scramble
+  };
+  
+  // Function to trigger daily post
+  const triggerDailyPost = () => {
+    if (isTriggeringDailyPost) return;
+    
+    setIsTriggeringDailyPost(true);
+    triggerDailyPostMutation.mutate();
   };
 
   const formatDate = (dateString: string) => {
@@ -326,6 +358,21 @@ export default function Home() {
                             ) : (
                               <>
                                 <i className="fas fa-plus-circle mr-1"></i> Create Test Thread
+                              </>
+                            )}
+                          </Button>
+                          <Button 
+                            className="bg-[#EB459E] hover:bg-[#C03B84] text-white text-xs px-2 py-1 rounded"
+                            onClick={() => triggerDailyPost()}
+                            disabled={isTriggeringDailyPost}
+                          >
+                            {isTriggeringDailyPost ? (
+                              <>
+                                <i className="fas fa-spinner fa-spin mr-1"></i> Triggering...
+                              </>
+                            ) : (
+                              <>
+                                <i className="fas fa-bolt mr-1"></i> Trigger Daily Post
                               </>
                             )}
                           </Button>

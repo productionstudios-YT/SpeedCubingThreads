@@ -125,6 +125,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to create test thread", message: errorMessage });
     }
   });
+  
+  // Trigger the scheduled daily scramble post immediately
+  apiRouter.post("/trigger-daily-post", requireAuth, async (req, res) => {
+    try {
+      console.log("Manual trigger of daily scramble post requested");
+      const success = await scheduler.triggerDailyScramblePost();
+      
+      if (success) {
+        res.status(200).json({ success: true, message: "Daily scramble post triggered successfully" });
+      } else {
+        res.status(500).json({ success: false, message: "Failed to trigger daily scramble post" });
+      }
+    } catch (error: unknown) {
+      console.error("Error triggering daily scramble post:", error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      res.status(500).json({ error: "Failed to trigger daily scramble post", message: errorMessage });
+    }
+  });
 
   // Register the API router
   app.use("/api", apiRouter);

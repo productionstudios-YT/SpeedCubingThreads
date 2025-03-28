@@ -22,6 +22,37 @@ export class Scheduler {
   }
   
   /**
+   * Manually trigger the daily scramble post creation
+   * Used for testing or forcing an immediate post
+   */
+  async triggerDailyScramblePost(): Promise<boolean> {
+    try {
+      console.log('Manually triggering daily scramble post creation');
+      const configs = await storage.getAllBotConfigs();
+      
+      if (configs.length === 0) {
+        console.error('No bot configurations found');
+        return false;
+      }
+      
+      for (const config of configs) {
+        if (!config.enabled) {
+          console.log(`Config ${config.id} is disabled, skipping`);
+          continue;
+        }
+        
+        await discordBot.createDailyScrambleThread(config);
+        console.log(`Successfully triggered daily thread for config ${config.id}`);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error('Error manually triggering daily scramble post:', error);
+      return false;
+    }
+  }
+  
+  /**
    * Schedule daily scramble posts at 4:00 PM IST
    * Cron format: minute hour * * *
    * IST is UTC+5:30, so 10:30 UTC = 4:00 PM IST
@@ -124,10 +155,11 @@ export class Scheduler {
    * Stop all scheduled jobs
    */
   stopAllJobs() {
-    for (const [name, job] of this.cronJobs.entries()) {
+    // Use forEach directly on the Map instead of using entries() iterator
+    this.cronJobs.forEach((job, name) => {
       console.log(`Stopping scheduled job: ${name}`);
       job.stop();
-    }
+    });
     this.cronJobs.clear();
   }
 }

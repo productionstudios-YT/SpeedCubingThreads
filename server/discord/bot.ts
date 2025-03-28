@@ -12,6 +12,9 @@ class DiscordBot {
       intents: [
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMessageReactions,
+        GatewayIntentBits.DirectMessages
       ]
     });
     
@@ -67,47 +70,109 @@ class DiscordBot {
     }
     
     try {
-      // Get the guild and channel
-      const guild = await this.client.guilds.fetch(config.guildId);
-      const channel = await guild.channels.fetch(config.channelId) as TextChannel;
+      console.log(`Attempting to create daily scramble thread in guild ${config.guildId}, channel ${config.channelId}`);
       
+      // Get the guild with error handling
+      let guild;
+      try {
+        guild = await this.client.guilds.fetch(config.guildId);
+        console.log(`Successfully fetched guild: ${guild.name}`);
+      } catch (error) {
+        console.error(`Failed to fetch guild with ID ${config.guildId}:`, error);
+        throw new Error(`Guild not found or bot doesn't have access to guild with ID ${config.guildId}`);
+      }
+      
+      // Get the channel with error handling
+      let channel;
+      try {
+        channel = await guild.channels.fetch(config.channelId) as TextChannel;
+        console.log(`Successfully fetched channel: ${channel.name}`);
+      } catch (error) {
+        console.error(`Failed to fetch channel with ID ${config.channelId}:`, error);
+        throw new Error(`Channel not found or bot doesn't have access to channel with ID ${config.channelId}`);
+      }
+      
+      // Verify channel is a text channel
       if (!channel || channel.type !== 0) { // 0 is GUILD_TEXT
+        console.error(`Channel ${config.channelId} is not a text channel, type:`, channel?.type);
         throw new Error(`Channel ${config.channelId} is not a text channel`);
       }
       
       // Generate the thread title and content
       const threadTitle = scrambleManager.generateThreadTitle();
       const threadContent = scrambleManager.generateThreadContent();
+      console.log(`Generated thread title: ${threadTitle}`);
       
-      // Create the thread
-      const message = await channel.send({
-        content: `New daily challenge is now available!`
-      });
+      // Create the thread - with enhanced error handling
+      let message;
+      try {
+        message = await channel.send({
+          content: `New daily challenge is now available!`
+        });
+        console.log(`Successfully sent initial message to channel`);
+      } catch (error) {
+        console.error('Failed to send message to channel:', error);
+        throw new Error(`Bot doesn't have permission to send messages in channel ${config.channelId}`);
+      }
       
-      const thread = await message.startThread({
-        name: threadTitle,
-        autoArchiveDuration: 1440, // 24 hours
-      });
+      // Start the thread
+      let thread;
+      try {
+        thread = await message.startThread({
+          name: threadTitle,
+          autoArchiveDuration: 1440, // 24 hours
+        });
+        console.log(`Successfully created thread: ${thread.id}`);
+      } catch (error) {
+        console.error('Failed to create thread:', error);
+        throw new Error(`Bot doesn't have permission to create threads in channel ${config.channelId}`);
+      }
       
-      await thread.send(threadContent);
+      // Send content to the thread
+      try {
+        await thread.send(threadContent);
+        console.log(`Successfully sent content to thread`);
+      } catch (error) {
+        console.error('Failed to send message to thread:', error);
+        // Don't throw here, we already created the thread
+      }
       
       // Calculate expiration time (24 hours from now)
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + config.deleteAfterHours);
+      
+      // Get the cube type for today
+      const cubeType = scrambleManager.getCubeTypeForDay();
+      console.log(`Today's cube type: ${cubeType}`);
+      
+      // Extract scramble text
+      let scrambleText;
+      try {
+        scrambleText = threadContent.split('```')[1].trim();
+      } catch (error: any) {
+        scrambleText = "Error extracting scramble text";
+        console.error('Error extracting scramble text:', error);
+      }
       
       // Store the thread information in the database
       const threadData: InsertChallengeThread = {
         threadId: thread.id,
         channelId: channel.id,
         guildId: guild.id,
-        cubeType: scrambleManager.getCubeTypeForDay(),
-        scramble: threadContent.split('```')[1].trim(),
+        cubeType,
+        scramble: scrambleText,
         expiresAt
       };
       
-      await storage.createChallengeThread(threadData);
+      try {
+        await storage.createChallengeThread(threadData);
+        console.log(`Successfully stored thread data in database`);
+      } catch (error) {
+        console.error('Failed to store thread data in database:', error);
+        // Don't throw here, the thread is already created
+      }
       
-      console.log(`Created daily scramble thread: ${threadTitle}`);
+      console.log(`Successfully created daily scramble thread: ${threadTitle}`);
     } catch (error) {
       console.error('Error creating daily scramble thread:', error);
       throw error;
@@ -142,9 +207,10 @@ class DiscordBot {
           await discordThread.delete();
           console.log(`Deleted expired thread: ${thread.threadId}`);
         }
-      } catch (error) {
+      } catch (error: unknown) {
         // Thread might already be deleted or inaccessible
-        console.warn(`Thread ${thread.threadId} could not be deleted: ${error.message}`);
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        console.warn(`Thread ${thread.threadId} could not be deleted: ${errorMessage}`);
       }
     } catch (error) {
       console.error('Error deleting thread:', error);
@@ -164,11 +230,31 @@ class DiscordBot {
     }
     
     try {
-      // Get the guild and channel
-      const guild = await this.client.guilds.fetch(guildId);
-      const channel = await guild.channels.fetch(channelId) as TextChannel;
+      console.log(`Attempting to create manual scramble thread in guild ${guildId}, channel ${channelId} for cube type ${cubeType}`);
       
-      if (!channel || channel.type !== 0) {
+      // Get the guild with error handling
+      let guild;
+      try {
+        guild = await this.client.guilds.fetch(guildId);
+        console.log(`Successfully fetched guild: ${guild.name}`);
+      } catch (error) {
+        console.error(`Failed to fetch guild with ID ${guildId}:`, error);
+        throw new Error(`Guild not found or bot doesn't have access to guild with ID ${guildId}`);
+      }
+      
+      // Get the channel with error handling
+      let channel;
+      try {
+        channel = await guild.channels.fetch(channelId) as TextChannel;
+        console.log(`Successfully fetched channel: ${channel.name}`);
+      } catch (error) {
+        console.error(`Failed to fetch channel with ID ${channelId}:`, error);
+        throw new Error(`Channel not found or bot doesn't have access to channel with ID ${channelId}`);
+      }
+      
+      // Verify channel is a text channel
+      if (!channel || channel.type !== 0) { // 0 is GUILD_TEXT
+        console.error(`Channel ${channelId} is not a text channel, type:`, channel?.type);
         throw new Error(`Channel ${channelId} is not a text channel`);
       }
       
@@ -179,6 +265,7 @@ class DiscordBot {
       
       const threadTitle = `${dayName} ${cubeType} Challenge (Manual)`;
       const scramble = scrambleManager.generateDailyScramble();
+      console.log(`Generated thread title: ${threadTitle}`);
       
       const threadContent = `# ${cubeType} Scramble Challenge
 **Day**: ${dayName} (Manual Challenge)
@@ -191,17 +278,39 @@ ${scramble.scramble}
 
 Remember to use a timer and follow standard WCA regulations. Good luck!`;
       
-      // Create the thread
-      const message = await channel.send({
-        content: `New manual challenge for ${cubeType} is now available!`
-      });
+      // Create the thread - with enhanced error handling
+      let message;
+      try {
+        message = await channel.send({
+          content: `New manual challenge for ${cubeType} is now available!`
+        });
+        console.log(`Successfully sent initial message to channel`);
+      } catch (error) {
+        console.error('Failed to send message to channel:', error);
+        throw new Error(`Bot doesn't have permission to send messages in channel ${channelId}`);
+      }
       
-      const thread = await message.startThread({
-        name: threadTitle,
-        autoArchiveDuration: 1440, // 24 hours
-      });
+      // Start the thread
+      let thread;
+      try {
+        thread = await message.startThread({
+          name: threadTitle,
+          autoArchiveDuration: 1440, // 24 hours
+        });
+        console.log(`Successfully created thread: ${thread.id}`);
+      } catch (error) {
+        console.error('Failed to create thread:', error);
+        throw new Error(`Bot doesn't have permission to create threads in channel ${channelId}`);
+      }
       
-      await thread.send(threadContent);
+      // Send content to the thread
+      try {
+        await thread.send(threadContent);
+        console.log(`Successfully sent content to thread`);
+      } catch (error) {
+        console.error('Failed to send message to thread:', error);
+        // Don't throw here, we already created the thread
+      }
       
       // Get bot config for the expiration duration
       const config = await storage.getBotConfigByGuildId(guildId);
@@ -221,9 +330,15 @@ Remember to use a timer and follow standard WCA regulations. Good luck!`;
         expiresAt
       };
       
-      await storage.createChallengeThread(threadData);
+      try {
+        await storage.createChallengeThread(threadData);
+        console.log(`Successfully stored thread data in database`);
+      } catch (error) {
+        console.error('Failed to store thread data in database:', error);
+        // Don't throw here, the thread is already created
+      }
       
-      console.log(`Created manual scramble thread: ${threadTitle}`);
+      console.log(`Successfully created manual scramble thread: ${threadTitle}`);
       return thread.id;
     } catch (error) {
       console.error('Error creating manual scramble thread:', error);
