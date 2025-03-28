@@ -121,16 +121,7 @@ function LoginForm({ isLoading, onSubmit }: { isLoading: boolean; onSubmit: (dat
     }, 1000);
   };
 
-  // Add function to test predefined credentials
-  const fillTestCredentials = (role: 'developer' | 'owner') => {
-    if (role === 'developer') {
-      form.setValue('username', 'developer');
-      form.setValue('password', 'Dev@SpeedCube2025#');
-    } else {
-      form.setValue('username', 'owner');
-      form.setValue('password', 'Owner@SpeedCube2025!');
-    }
-  };
+  // Form handling is complete
 
   return (
     <Card>
@@ -173,26 +164,6 @@ function LoginForm({ isLoading, onSubmit }: { isLoading: boolean; onSubmit: (dat
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Login
             </Button>
-            <div className="flex gap-2 mt-4">
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm" 
-                className="flex-1 text-xs"
-                onClick={() => fillTestCredentials('developer')}
-              >
-                Use Developer
-              </Button>
-              <Button 
-                type="button" 
-                variant="outline" 
-                size="sm" 
-                className="flex-1 text-xs"
-                onClick={() => fillTestCredentials('owner')}
-              >
-                Use Owner
-              </Button>
-            </div>
           </form>
         </Form>
       </CardContent>
