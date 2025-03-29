@@ -693,15 +693,13 @@ class DiscordBot {
       const threadTitle = `${dateString} - ${cubeType} Test Scramble`;
       
       // Create content
-      const threadContent = `# 🧊${cubeType} Scramble Challenge
+      const threadContent = `${cubeType} Scramble Challenge
 ||@daily scramble ping||
 
 Here's today's ${cubeType} scramble. Send Your Time And Reconstruction (optional) Here.
 
-\`\`\`
 ${scramble}
-\`\`\`
-*Good luck! 🍀*`;
+Good luck! 🍀`;
       
       // Find the 'daily scramble ping' role in the guild
       const pingRoleName = 'daily scramble ping';

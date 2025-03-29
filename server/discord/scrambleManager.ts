@@ -100,15 +100,13 @@ export class ScrambleManager {
   generateThreadContent(date: Date = new Date()): string {
     const { day, cubeType, scramble } = this.generateDailyScramble(date);
     
-    return `# 🧊${cubeType} Scramble Challenge
+    return `${cubeType} Scramble Challenge
 ||@daily scramble ping||
 
 Here's today's ${cubeType} scramble. Send Your Time And Reconstruction (optional) Here.
 
-\`\`\`
 ${scramble}
-\`\`\`
-*Good luck! 🍀*`;
+Good luck! 🍀`;
   }
 }
 
