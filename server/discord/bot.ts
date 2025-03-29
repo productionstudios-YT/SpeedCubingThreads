@@ -453,13 +453,13 @@ class DiscordBot {
       const threadContent = scrambleManager.generateThreadContent();
       console.log(`Generated thread title: ${threadTitle}`);
       
-      // Create the thread - with enhanced error handling
+      // Create the thread with ping - with enhanced error handling
       let message;
       try {
         message = await channel.send({
-          content: `New daily challenge is now available!`
+          content: `New daily challenge is now available! @daily scramble ping`
         });
-        console.log(`Successfully sent initial message to channel`);
+        console.log(`Successfully sent initial message to channel with ping`);
       } catch (error) {
         console.error('Failed to send message to channel:', error);
         throw new Error(`Bot doesn't have permission to send messages in channel ${config.channelId}`);
@@ -626,9 +626,9 @@ ${scramble}
 
 Reply to this thread with your time if you'd like to participate!`;
       
-      // Send message and create thread
+      // Send message and create thread with ping
       const message = await channel.send({
-        content: `Test scramble for ${cubeType} has been created!`
+        content: `Test scramble for ${cubeType} has been created! @daily scramble ping`
       });
       
       const thread = await message.startThread({
