@@ -481,8 +481,9 @@ class DiscordBot {
         throw new Error(`Channel ${channelId} is not a text channel or could not be found`);
       }
       
-      // Generate scramble
-      const scramble = scrambleManager.generateScramble(cubeType);
+      // Generate scramble for the specific cube type
+      const scrambleData = scrambleManager.generateScrambleForType(cubeType);
+      const scramble = scrambleData.scramble;
       
       // Create thread title and content
       const currentDate = new Date();

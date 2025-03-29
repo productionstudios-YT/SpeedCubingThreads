@@ -34,6 +34,20 @@ export class ScrambleManager {
       scramble
     };
   }
+  
+  /**
+   * Generate a scramble for a specific cube type
+   * @param cubeType The cube type to generate a scramble for
+   * @returns Object containing the cube type and scramble
+   */
+  generateScrambleForType(cubeType: CubeType) {
+    const scramble = generateScramble(cubeType);
+    
+    return {
+      cubeType,
+      scramble
+    };
+  }
 
   /**
    * Generate the thread title for a daily challenge

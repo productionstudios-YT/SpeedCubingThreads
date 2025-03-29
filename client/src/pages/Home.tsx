@@ -42,6 +42,7 @@ export default function Home() {
   const [guildId, setGuildId] = useState("");
   const [isCreatingTestThread, setIsCreatingTestThread] = useState(false);
   const [isTriggeringDailyPost, setIsTriggeringDailyPost] = useState(false);
+  const [isCleaningThreads, setIsCleaningThreads] = useState(false);
   const { toast } = useToast();
 
   const { data: healthData, isLoading: healthLoading } = useQuery<HealthResponse>({
@@ -143,6 +144,30 @@ export default function Home() {
     }
   });
   
+  // Mutation for cleaning up threads
+  const cleanupThreadsMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/trigger-thread-cleanup", {});
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/threads"] });
+      toast({
+        title: "Threads Cleaned Up",
+        description: `Successfully cleaned up ${data.count || 0} expired thread(s)`,
+      });
+      setIsCleaningThreads(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: `Failed to clean up threads: ${error.message}`,
+        variant: "destructive",
+      });
+      setIsCleaningThreads(false);
+    }
+  });
+  
   // Function to create a test thread
   const createTestThread = () => {
     if (isCreatingTestThread) return;
@@ -157,6 +182,14 @@ export default function Home() {
     
     setIsTriggeringDailyPost(true);
     triggerDailyPostMutation.mutate();
+  };
+  
+  // Function to clean up threads
+  const cleanupThreads = () => {
+    if (isCleaningThreads) return;
+    
+    setIsCleaningThreads(true);
+    cleanupThreadsMutation.mutate();
   };
 
   const formatDate = (dateString: string) => {
@@ -380,6 +413,21 @@ export default function Home() {
                             <i className="fas fa-cube mr-1"></i> Multiple Cube
                             Types
                           </span>
+                          <Button 
+                            className="bg-[#5B73A0] hover:bg-[#495C82] text-white text-xs px-2 py-1 rounded"
+                            onClick={() => cleanupThreads()}
+                            disabled={isCleaningThreads}
+                          >
+                            {isCleaningThreads ? (
+                              <>
+                                <i className="fas fa-spinner fa-spin mr-1"></i> Cleaning...
+                              </>
+                            ) : (
+                              <>
+                                <i className="fas fa-broom mr-1"></i> Clean Up Threads
+                              </>
+                            )}
+                          </Button>
                           <span className="bg-[#202225] text-xs px-2 py-1 rounded">
                             <i className="fas fa-clock mr-1"></i> Auto Thread
                             Cleanup

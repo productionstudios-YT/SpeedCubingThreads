@@ -143,6 +143,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ error: "Failed to trigger daily scramble post", message: errorMessage });
     }
   });
+  
+  // Trigger thread cleanup manually (delete expired threads)
+  apiRouter.post("/trigger-thread-cleanup", requireAuth, async (req, res) => {
+    try {
+      console.log("Manual trigger of thread cleanup requested");
+      const result = await scheduler.triggerThreadCleanup();
+      
+      if (result.success) {
+        res.status(200).json({ 
+          success: true, 
+          message: `Thread cleanup completed successfully. ${result.count} thread(s) processed.`,
+          count: result.count 
+        });
+      } else {
+        res.status(500).json({ 
+          success: false, 
+          message: "Failed to trigger thread cleanup",
+          count: 0
+        });
+      }
+    } catch (error: unknown) {
+      console.error("Error triggering thread cleanup:", error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      res.status(500).json({ 
+        error: "Failed to trigger thread cleanup", 
+        message: errorMessage,
+        count: 0
+      });
+    }
+  });
 
   // Register the API router
   app.use("/api", apiRouter);

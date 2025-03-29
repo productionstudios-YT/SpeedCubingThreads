@@ -51,6 +51,41 @@ export class Scheduler {
       return false;
     }
   }
+
+  /**
+   * Manually trigger cleanup of expired threads
+   * Used for immediate cleanup from the dashboard
+   */
+  async triggerThreadCleanup(): Promise<{success: boolean, count: number}> {
+    try {
+      console.log('Manually triggering thread cleanup');
+      const expiredThreads = await storage.getExpiredThreads();
+      
+      if (expiredThreads.length === 0) {
+        console.log('No expired threads found');
+        return { success: true, count: 0 };
+      }
+      
+      let cleanedCount = 0;
+      for (const thread of expiredThreads) {
+        try {
+          await discordBot.deleteThread(thread);
+          await storage.markThreadAsDeleted(thread.id);
+          cleanedCount++;
+          console.log(`Successfully cleaned up thread ${thread.id}`);
+        } catch (error) {
+          console.error(`Error cleaning up thread ${thread.id}:`, error);
+          // Continue with other threads even if one fails
+        }
+      }
+      
+      console.log(`Thread cleanup completed: ${cleanedCount} threads processed`);
+      return { success: true, count: cleanedCount };
+    } catch (error) {
+      console.error('Error manually triggering thread cleanup:', error);
+      return { success: false, count: 0 };
+    }
+  }
   
   /**
    * Schedule daily scramble posts at 4:00 PM IST
