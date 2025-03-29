@@ -36,6 +36,120 @@ interface NextChallengeResponse {
   isToday: boolean;
 }
 
+// Discord Message Emulator Component
+function DiscordMessageEmulator() {
+  const [selectedCubeType, setSelectedCubeType] = useState<CubeType>(cubeTypes.THREE);
+  const [scramble, setScramble] = useState<string>("");
+  
+  useEffect(() => {
+    // Generate initial scramble
+    const newScramble = generateScramble(selectedCubeType);
+    setScramble(newScramble);
+  }, [selectedCubeType]);
+  
+  const handleGenerateNewScramble = () => {
+    const newScramble = generateScramble(selectedCubeType);
+    setScramble(newScramble);
+  };
+  
+  // Format date to get day of week and date for thread title
+  const formatThreadDate = () => {
+    const date = new Date();
+    return date.toLocaleDateString('en-US', { 
+      weekday: 'long',
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
+  };
+  
+  // Get emoji representation for cube type
+  const getCubeEmoji = (cubeType: string): string => {
+    switch(cubeType) {
+      case cubeTypes.THREE: return "🧊";
+      case cubeTypes.TWO: return "🎲";
+      case cubeTypes.THREE_BLD: return "🙈";
+      case cubeTypes.THREE_OH: return "👆";
+      case cubeTypes.SKEWB: return "🔄";
+      case cubeTypes.PYRAMINX: return "🔺";
+      case cubeTypes.CLOCK: return "⏰";
+      default: return "🧊";
+    }
+  };
+  
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-4 items-end">
+        <div className="space-y-1">
+          <label className="block text-[#DCDDDE] text-sm">Cube Type</label>
+          <Select
+            value={selectedCubeType}
+            onValueChange={(value: CubeType) => setSelectedCubeType(value)}
+          >
+            <SelectTrigger className="bg-[#202225] border-[#202225] text-white min-w-[180px]">
+              <SelectValue placeholder="Select cube type" />
+            </SelectTrigger>
+            <SelectContent className="bg-[#36393F] border-[#202225] text-white">
+              {Object.values(cubeTypes).map((type) => (
+                <SelectItem key={type} value={type}>
+                  {type}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        
+        <Button
+          className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
+          onClick={handleGenerateNewScramble}
+        >
+          <i className="fas fa-sync-alt mr-2"></i>
+          Generate New Scramble
+        </Button>
+      </div>
+      
+      {/* Discord Message Preview */}
+      <div className="bg-[#36393F] rounded-lg p-4 border border-[#202225]">
+        <div className="flex items-center mb-2">
+          <div className="w-10 h-10 rounded-full bg-[#5865F2] flex items-center justify-center text-white mr-3">
+            <i className="fas fa-robot text-lg"></i>
+          </div>
+          <div>
+            <div className="text-white font-semibold">SpeedCube Scrambler</div>
+            <div className="text-xs text-[#A3A6AA]">Today at {new Date().toLocaleTimeString()}</div>
+          </div>
+        </div>
+        
+        {/* Thread Title */}
+        <div className="mb-3 bg-[#2F3136] p-2 rounded-md">
+          <div className="flex items-center">
+            <span className="text-[#A3A6AA] mr-2">#</span>
+            <span className="text-white font-medium">{selectedCubeType} Scramble Challenge</span>
+          </div>
+        </div>
+        
+        {/* Thread Content */}
+        <div className="text-[#DCDDDE]">
+          <div className="mb-2 text-xs text-[#A3A6AA]">
+            <span className="bg-[#4F545C] px-1 py-0.5 rounded text-[#DCDDDE]">@daily scramble ping</span>
+          </div>
+          
+          <div className="mb-3">
+            <p>🗓 <strong>Daily Scramble Challenge</strong> - {formatThreadDate()}</p>
+            <p>Today's challenge: <strong>{selectedCubeType}</strong> {getCubeEmoji(selectedCubeType)}</p>
+          </div>
+          
+          <div className="mb-3 font-mono">
+            {scramble}
+          </div>
+          
+          <p>Good luck! 🍀</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Home() {
   const [selectedTab, setSelectedTab] = useState<"bot" | "schedule" | "threads" | "settings">(
     "bot"
@@ -740,120 +854,6 @@ export default function Home() {
               </div>
             )}
           </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Discord Message Emulator Component
-function DiscordMessageEmulator() {
-  const [selectedCubeType, setSelectedCubeType] = useState<CubeType>(cubeTypes.THREE);
-  const [scramble, setScramble] = useState<string>("");
-  
-  useEffect(() => {
-    // Generate initial scramble
-    const newScramble = generateScramble(selectedCubeType);
-    setScramble(newScramble);
-  }, [selectedCubeType]);
-  
-  const handleGenerateNewScramble = () => {
-    const newScramble = generateScramble(selectedCubeType);
-    setScramble(newScramble);
-  };
-  
-  // Format date to get day of week and date for thread title
-  const formatThreadDate = () => {
-    const date = new Date();
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long',
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
-  };
-  
-  // Get emoji representation for cube type
-  const getCubeEmoji = (cubeType: string): string => {
-    switch(cubeType) {
-      case cubeTypes.THREE: return "🧊";
-      case cubeTypes.TWO: return "🎲";
-      case cubeTypes.THREE_BLD: return "🙈";
-      case cubeTypes.THREE_OH: return "👆";
-      case cubeTypes.SKEWB: return "🔄";
-      case cubeTypes.PYRAMINX: return "🔺";
-      case cubeTypes.CLOCK: return "⏰";
-      default: return "🧊";
-    }
-  };
-  
-  return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-4 items-end">
-        <div className="space-y-1">
-          <label className="block text-[#DCDDDE] text-sm">Cube Type</label>
-          <Select
-            value={selectedCubeType}
-            onValueChange={(value: CubeType) => setSelectedCubeType(value)}
-          >
-            <SelectTrigger className="bg-[#202225] border-[#202225] text-white min-w-[180px]">
-              <SelectValue placeholder="Select cube type" />
-            </SelectTrigger>
-            <SelectContent className="bg-[#36393F] border-[#202225] text-white">
-              {Object.values(cubeTypes).map((type) => (
-                <SelectItem key={type} value={type}>
-                  {type}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        
-        <Button
-          className="bg-[#5865F2] hover:bg-[#4752C4] text-white"
-          onClick={handleGenerateNewScramble}
-        >
-          <i className="fas fa-sync-alt mr-2"></i>
-          Generate New Scramble
-        </Button>
-      </div>
-      
-      {/* Discord Message Preview */}
-      <div className="bg-[#36393F] rounded-lg p-4 border border-[#202225]">
-        <div className="flex items-center mb-2">
-          <div className="w-10 h-10 rounded-full bg-[#5865F2] flex items-center justify-center text-white mr-3">
-            <i className="fas fa-robot text-lg"></i>
-          </div>
-          <div>
-            <div className="text-white font-semibold">SpeedCube Scrambler</div>
-            <div className="text-xs text-[#A3A6AA]">Today at {new Date().toLocaleTimeString()}</div>
-          </div>
-        </div>
-        
-        {/* Thread Title */}
-        <div className="mb-3 bg-[#2F3136] p-2 rounded-md">
-          <div className="flex items-center">
-            <span className="text-[#A3A6AA] mr-2">#</span>
-            <span className="text-white font-medium">{selectedCubeType} Scramble Challenge</span>
-          </div>
-        </div>
-        
-        {/* Thread Content */}
-        <div className="text-[#DCDDDE]">
-          <div className="mb-2 text-xs text-[#A3A6AA]">
-            <span className="bg-[#4F545C] px-1 py-0.5 rounded text-[#DCDDDE]">@daily scramble ping</span>
-          </div>
-          
-          <div className="mb-3">
-            <p>🗓 <strong>Daily Scramble Challenge</strong> - {formatThreadDate()}</p>
-            <p>Today's challenge: <strong>{selectedCubeType}</strong> {getCubeEmoji(selectedCubeType)}</p>
-          </div>
-          
-          <div className="mb-3 font-mono">
-            {scramble}
-          </div>
-          
-          <p>Good luck! 🍀</p>
         </div>
       </div>
     </div>
