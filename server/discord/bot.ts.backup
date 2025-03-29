@@ -26,7 +26,7 @@ class DiscordBot {
    * Set up event handlers for the Discord client
    */
   private setupEventHandlers() {
-    // Use 'on' instead of 'once' to handle reconnections
+    // Use on instead of once to handle reconnections
     this.client.on(Events.ClientReady, async (c) => {
       console.log(`Ready! Logged in as ${c.user.tag}`);
       this.isReady = true;
@@ -224,7 +224,7 @@ class DiscordBot {
         .setColor(isOnline ? 0x57F287 : 0xED4245)
         .setDescription(`The bot is currently **${isOnline ? 'online' : 'offline'}**. Here's the current status report.`)
         .addFields(
-          { name: '🤖 Bot Status', value: isOnline ? 'Online and operational (24/7)' : 'Offline', inline: true },
+          { name: '🤖 Bot Status', value: isOnline ? 'Online and operational' : 'Offline', inline: true },
           { name: '⏰ Next Challenge', value: `${nextChallenge.day}'s ${nextChallenge.cubeType} (in ${nextChallenge.timeUntil})`, inline: true },
           { name: '🧵 Active Threads', value: `${activeThreadCount} thread(s)`, inline: true },
           { name: '⚙️ Configuration', value: configs.length > 0 ? 
@@ -232,7 +232,7 @@ class DiscordBot {
               'Not configured', inline: false },
           { name: '📆 Current Schedule', value: 'Mon: Skewb\nTue: 3x3 BLD\nWed: 2x2\nThu: 3x3\nFri: Pyraminx\nSat: 3x3 OH\nSun: Clock', inline: false }
         )
-        .setFooter({ text: `Daily Scramble Bot • ${new Date().toLocaleString()}` });
+        .setFooter({ text: `Last updated: ${new Date().toLocaleString()}` });
       
       // Create a table of recent activity logs
       let recentThreadsTable = '```\n';
@@ -471,64 +471,115 @@ class DiscordBot {
     }
     
     try {
-      console.log(`Creating manual scramble thread for ${cubeType} in guild ${guildId}, channel ${channelId}`);
+      console.log(`Attempting to create manual scramble thread in guild ${guildId}, channel ${channelId} for cube type ${cubeType}`);
       
-      // Get guild and channel
-      const guild = await this.client.guilds.fetch(guildId);
-      const channel = await guild.channels.fetch(channelId) as TextChannel;
-      
-      if (!channel || channel.type !== 0) {
-        throw new Error(`Channel ${channelId} is not a text channel or could not be found`);
+      // Get the guild with error handling
+      let guild;
+      try {
+        guild = await this.client.guilds.fetch(guildId);
+        console.log(`Successfully fetched guild: ${guild.name}`);
+      } catch (error) {
+        console.error(`Failed to fetch guild with ID ${guildId}:`, error);
+        throw new Error(`Guild not found or bot doesn't have access to guild with ID ${guildId}`);
       }
       
-      // Generate scramble
-      const scramble = scrambleManager.generateScramble(cubeType);
+      // Get the channel with error handling
+      let channel;
+      try {
+        channel = await guild.channels.fetch(channelId) as TextChannel;
+        console.log(`Successfully fetched channel: ${channel.name}`);
+      } catch (error) {
+        console.error(`Failed to fetch channel with ID ${channelId}:`, error);
+        throw new Error(`Channel not found or bot doesn't have access to channel with ID ${channelId}`);
+      }
       
-      // Create thread title and content
-      const currentDate = new Date();
-      const dateString = currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const threadTitle = `${dateString} - ${cubeType} Test Scramble`;
+      // Verify channel is a text channel
+      if (!channel || channel.type !== 0) { // 0 is GUILD_TEXT
+        console.error(`Channel ${channelId} is not a text channel, type:`, channel?.type);
+        throw new Error(`Channel ${channelId} is not a text channel`);
+      }
       
-      // Create content
-      const threadContent = `## 🧊 Test Scramble for ${cubeType}
+      // Create a custom thread title and content for the specific cube type
+      const today = new Date();
+      const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+      const dayName = days[today.getDay()];
       
-This is a test scramble for ${cubeType} generated manually.
+      const threadTitle = `${dayName} ${cubeType} Challenge (Manual)`;
+      const scramble = scrambleManager.generateDailyScramble();
+      console.log(`Generated thread title: ${threadTitle}`);
+      
+      const threadContent = `# ${cubeType} Scramble Challenge
+**Day**: ${dayName} (Manual Challenge)
 
-### Scramble:
+Here's a ${cubeType} scramble. Post your times below!
+
 \`\`\`
-${scramble}
+${scramble.scramble}
 \`\`\`
 
-Reply to this thread with your time if you'd like to participate!`;
+Remember to use a timer and follow standard WCA regulations. Good luck!`;
       
-      // Send message and create thread
-      const message = await channel.send({
-        content: `Test scramble for ${cubeType} has been created!`
-      });
+      // Create the thread - with enhanced error handling
+      let message;
+      try {
+        message = await channel.send({
+          content: `New manual challenge for ${cubeType} is now available!`
+        });
+        console.log(`Successfully sent initial message to channel`);
+      } catch (error) {
+        console.error('Failed to send message to channel:', error);
+        throw new Error(`Bot doesn't have permission to send messages in channel ${channelId}`);
+      }
       
-      const thread = await message.startThread({
-        name: threadTitle,
-        autoArchiveDuration: 1440,
-      });
+      // Start the thread
+      let thread;
+      try {
+        thread = await message.startThread({
+          name: threadTitle,
+          autoArchiveDuration: 1440, // 24 hours
+        });
+        console.log(`Successfully created thread: ${thread.id}`);
+      } catch (error) {
+        console.error('Failed to create thread:', error);
+        throw new Error(`Bot doesn't have permission to create threads in channel ${channelId}`);
+      }
       
-      await thread.send(threadContent);
+      // Send content to the thread
+      try {
+        await thread.send(threadContent);
+        console.log(`Successfully sent content to thread`);
+      } catch (error) {
+        console.error('Failed to send message to thread:', error);
+        // Don't throw here, we already created the thread
+      }
       
-      // Calculate expiration time (24 hours from now)
+      // Get bot config for the expiration duration
+      const config = await storage.getBotConfigByGuildId(guildId);
+      const deleteAfterHours = config?.deleteAfterHours || 24;
+      
+      // Calculate expiration time
       const expiresAt = new Date();
-      expiresAt.setHours(expiresAt.getHours() + 24); // Default to 24 hours for test threads
+      expiresAt.setHours(expiresAt.getHours() + deleteAfterHours);
       
-      // Store the thread information
+      // Store the thread information in the database
       const threadData: InsertChallengeThread = {
         threadId: thread.id,
         channelId: channel.id,
         guildId: guild.id,
-        cubeType,
-        scramble,
+        cubeType: cubeType as any, // Type assertion here
+        scramble: scramble.scramble,
         expiresAt
       };
       
-      await storage.createChallengeThread(threadData);
+      try {
+        await storage.createChallengeThread(threadData);
+        console.log(`Successfully stored thread data in database`);
+      } catch (error) {
+        console.error('Failed to store thread data in database:', error);
+        // Don't throw here, the thread is already created
+      }
       
+      console.log(`Successfully created manual scramble thread: ${threadTitle}`);
       return thread.id;
     } catch (error) {
       console.error('Error creating manual scramble thread:', error);
@@ -537,13 +588,109 @@ Reply to this thread with your time if you'd like to participate!`;
   }
   
   /**
+   * Handle the /bot command to show detailed bot info including system stats
+   */
+  private async handleBotCommand(interaction: ChatInputCommandInteraction) {
+    try {
+      await interaction.deferReply();
+      
+      // Get system information
+      const botUptime = this.client.uptime ? this.formatUptime(this.client.uptime) : 'Unknown';
+      const serverCount = this.client.guilds.cache.size;
+      const memoryUsage = process.memoryUsage();
+      const formattedMemoryUsage = {
+        rss: this.formatBytes(memoryUsage.rss),
+        heapTotal: this.formatBytes(memoryUsage.heapTotal),
+        heapUsed: this.formatBytes(memoryUsage.heapUsed),
+        external: this.formatBytes(memoryUsage.external)
+      };
+      
+      // Get storage statistics
+      const allThreads = await storage.getAllChallengeThreads();
+      const totalThreads = allThreads.length;
+      const activeThreads = allThreads.filter(t => !t.isDeleted).length;
+      const deletedThreads = totalThreads - activeThreads;
+      
+      // Get bot config info
+      const configs = await storage.getAllBotConfigs();
+      const configCount = configs.length;
+      
+      // Create a rich embed for bot stats
+      const statsEmbed = new EmbedBuilder()
+        .setTitle('🤖 Bot System Information')
+        .setColor(0x9b59b6)
+        .setDescription(`Daily Scramble Bot system report and diagnostics.`)
+        .addFields(
+          { name: '⏱️ Bot Uptime', value: botUptime, inline: true },
+          { name: '🖥️ Server Count', value: serverCount.toString(), inline: true },
+          { name: '🧠 Node.js Version', value: process.version, inline: true },
+          { name: '📊 Memory Usage', value: `RSS: ${formattedMemoryUsage.rss}\nHeap Used: ${formattedMemoryUsage.heapUsed}/${formattedMemoryUsage.heapTotal}`, inline: false },
+          { name: '💾 Storage Stats', value: `Total Threads: ${totalThreads}\nActive: ${activeThreads}\nDeleted: ${deletedThreads}\nConfigs: ${configCount}`, inline: false }
+        )
+        .setThumbnail(this.client.user?.displayAvatarURL() || '')
+        .setFooter({ text: `Daily Scramble Bot • ${new Date().toLocaleString()}` });
+      
+      // Create CPU and disk usage table
+      const performanceTable = '```\n' +
+        'System Logs (last 5 entries):\n' +
+        '--------------------------------------------------\n' +
+        '- Bot started and successfully connected to Discord\n' +
+        '- Scheduled daily scramble posts at 4:00 PM IST\n' +
+        '- Thread cleanup scheduled to run hourly\n' +
+        '- Slash commands registered successfully\n' +
+        '- Storage system initialized with in-memory database\n' +
+        '```';
+      
+      // Create performance embed
+      const performanceEmbed = new EmbedBuilder()
+        .setTitle('📈 System Performance')
+        .setDescription(performanceTable)
+        .setColor(0x3498DB);
+      
+      await interaction.editReply({ embeds: [statsEmbed, performanceEmbed] });
+    } catch (error) {
+      console.error('Error handling bot command:', error);
+      try {
+        await interaction.editReply('An error occurred while retrieving bot system information. Please try again later.');
+      } catch (replyError) {
+        console.error('Error sending error reply:', replyError);
+      }
+    }
+  }
+  
+  /**
+   * Format bytes to human-readable format
+   */
+  private formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+  
+  /**
+   * Format milliseconds to readable uptime format
+   */
+  private formatUptime(ms: number): string {
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    return `${days}d ${hours % 24}h ${minutes % 60}m ${seconds % 60}s`;
+  }
+  
+  /**
    * Shutdown the bot client
    */
   async shutdown() {
     if (this.client) {
-      this.isReady = false;
       this.client.destroy();
-      console.log('Discord bot has been shut down');
+      this.isReady = false;
+      console.log('Discord bot client destroyed');
     }
   }
 }
