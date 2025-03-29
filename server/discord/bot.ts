@@ -131,7 +131,7 @@ class DiscordBot {
           { name: '💾 Storage Stats', value: `Total Threads: ${totalThreads}\nActive: ${activeThreads}\nDeleted: ${deletedThreads}\nConfigs: ${configCount}`, inline: false }
         )
         .setThumbnail(this.client.user?.displayAvatarURL() || '')
-        .setFooter({ text: `Bot ID: ${this.client.user?.id || 'Unknown'} • ${new Date().toLocaleString()}` });
+        .setFooter({ text: `Daily Scramble Bot • ${new Date().toLocaleString()}` });
       
       // Create CPU and disk usage table
       const performanceTable = '```\n' +
@@ -610,7 +610,7 @@ Remember to use a timer and follow standard WCA regulations. Good luck!`;
           { name: '💾 Storage Stats', value: `Total Threads: ${totalThreads}\nActive: ${activeThreads}\nDeleted: ${deletedThreads}\nConfigs: ${configCount}`, inline: false }
         )
         .setThumbnail(this.client.user?.displayAvatarURL() || '')
-        .setFooter({ text: `Bot ID: ${this.client.user?.id || 'Unknown'} • ${new Date().toLocaleString()}` });
+        .setFooter({ text: `Daily Scramble Bot • ${new Date().toLocaleString()}` });
       
       // Create CPU and disk usage table
       const performanceTable = '```\n' +
