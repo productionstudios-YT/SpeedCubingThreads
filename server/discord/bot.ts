@@ -1,4 +1,4 @@
-import { Client, Events, GatewayIntentBits, TextChannel, ThreadChannel, SlashCommandBuilder, REST, Routes, ChatInputCommandInteraction, CommandInteraction, EmbedBuilder, ActivityType } from 'discord.js';
+import { Client, Events, GatewayIntentBits, TextChannel, ThreadChannel, SlashCommandBuilder, REST, Routes, ChatInputCommandInteraction, CommandInteraction, EmbedBuilder, ActivityType, Guild } from 'discord.js';
 import { BotConfig, ChallengeThread, InsertChallengeThread } from '@shared/schema';
 import { storage } from '../storage';
 import { scrambleManager } from './scrambleManager';
@@ -386,6 +386,35 @@ class DiscordBot {
   }
   
   /**
+   * Find a role by name in a guild and return its ID
+   * @param guild The guild to search in
+   * @param roleName The name of the role to find (case-insensitive)
+   * @returns The role ID if found, or empty string if not found
+   */
+  private async findRoleId(guild: Guild, roleName: string): Promise<string> {
+    let roleId = '';
+    
+    try {
+      // Fetch and cache all roles from the guild
+      const roles = await guild.roles.fetch();
+      
+      // Find the role with a name that matches (case-insensitive)
+      const role = roles.find((r: any) => r.name.toLowerCase() === roleName.toLowerCase());
+      
+      if (role) {
+        roleId = role.id;
+        console.log(`Found role ID for "${roleName}": ${roleId}`);
+      } else {
+        console.log(`Role "${roleName}" not found in guild`);
+      }
+    } catch (error) {
+      console.error(`Error finding role "${roleName}":`, error);
+    }
+    
+    return roleId;
+  }
+  
+  /**
    * Initialize the Discord bot
    * @param token The Discord bot token
    */
@@ -456,9 +485,17 @@ class DiscordBot {
       // Create the thread with ping - with enhanced error handling
       let message;
       try {
-        message = await channel.send({
-          content: `New daily challenge is now available! @daily scramble ping`
-        });
+        // Find the 'daily scramble ping' role in the guild
+        const pingRoleName = 'daily scramble ping';
+        const pingRoleId = await this.findRoleId(guild, pingRoleName);
+        
+        // Create ping content with role mention if role was found
+        let content = 'New daily challenge is now available!';
+        if (pingRoleId) {
+          content += ` <@&${pingRoleId}>`;  // This is the proper way to mention a role
+        }
+        
+        message = await channel.send({ content });
         console.log(`Successfully sent initial message to channel with ping`);
       } catch (error) {
         console.error('Failed to send message to channel:', error);
@@ -637,10 +674,18 @@ ${scramble}
 
 Reply to this thread with your time if you'd like to participate!`;
       
+      // Find the 'daily scramble ping' role in the guild
+      const pingRoleName = 'daily scramble ping';
+      const pingRoleId = await this.findRoleId(guild, pingRoleName);
+      
+      // Create ping content with role mention if role was found
+      let content = `Test scramble for ${cubeType} has been created!`;
+      if (pingRoleId) {
+        content += ` <@&${pingRoleId}>`;  // This is the proper way to mention a role
+      }
+      
       // Send message and create thread with ping
-      const message = await channel.send({
-        content: `Test scramble for ${cubeType} has been created! @daily scramble ping`
-      });
+      const message = await channel.send({ content });
       
       const thread = await message.startThread({
         name: threadTitle,
