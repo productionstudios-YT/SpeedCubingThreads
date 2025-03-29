@@ -100,16 +100,15 @@ export class ScrambleManager {
   generateThreadContent(date: Date = new Date()): string {
     const { day, cubeType, scramble } = this.generateDailyScramble(date);
     
-    return `# ${cubeType} Scramble Challenge
-**Day**: ${day}
+    return `# 🧊${cubeType} Scramble Challenge
+||@daily scramble ping||
 
-Here's today's ${cubeType} scramble. Post your times below!
+Here's today's ${cubeType} scramble. Send Your Time And Reconstruction (optional) Here.
 
 \`\`\`
 ${scramble}
 \`\`\`
-
-Remember to use a timer and follow standard WCA regulations. Good luck!`;
+*Good luck! 🍀*`;
   }
 }
 

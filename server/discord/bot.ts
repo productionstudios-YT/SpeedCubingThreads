@@ -485,18 +485,10 @@ class DiscordBot {
       // Create the thread with ping - with enhanced error handling
       let message;
       try {
-        // Find the 'daily scramble ping' role in the guild
-        const pingRoleName = 'daily scramble ping';
-        const pingRoleId = await this.findRoleId(guild, pingRoleName);
-        
-        // Create ping content with role mention if role was found
-        let content = 'New daily challenge is now available!';
-        if (pingRoleId) {
-          content += ` <@&${pingRoleId}>`;  // This is the proper way to mention a role
-        }
-        
-        message = await channel.send({ content });
-        console.log(`Successfully sent initial message to channel with ping`);
+        // We'll create a single message for the thread
+        // No need for a ping here as we'll include it in the thread message
+        message = await channel.send({ content: `Daily Scramble Challenge` });
+        console.log(`Successfully sent initial message to channel`);
       } catch (error) {
         console.error('Failed to send message to channel:', error);
         throw new Error(`Bot doesn't have permission to send messages in channel ${config.channelId}`);
@@ -701,16 +693,15 @@ class DiscordBot {
       const threadTitle = `${dateString} - ${cubeType} Test Scramble`;
       
       // Create content
-      const threadContent = `## 🧊 Test Scramble for ${cubeType}
-      
-This is a test scramble for ${cubeType} generated manually.
+      const threadContent = `# 🧊${cubeType} Scramble Challenge
+||@daily scramble ping||
 
-### Scramble:
+Here's today's ${cubeType} scramble. Send Your Time And Reconstruction (optional) Here.
+
 \`\`\`
 ${scramble}
 \`\`\`
-
-Reply to this thread with your time if you'd like to participate!`;
+*Good luck! 🍀*`;
       
       // Find the 'daily scramble ping' role in the guild
       const pingRoleName = 'daily scramble ping';
