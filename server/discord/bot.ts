@@ -70,6 +70,8 @@ class DiscordBot {
         await this.handleDailyCommand(interaction);
       } else if (interaction.commandName === 'bot') {
         await this.handleBotCommand(interaction);
+      } else if (interaction.commandName === 'history') {
+        await this.handleHistoryCommand(interaction);
       }
     });
   }
@@ -90,7 +92,10 @@ class DiscordBot {
           .setDescription('Show information about the daily scramble bot status'),
         new SlashCommandBuilder()
           .setName('bot')
-          .setDescription('Show detailed bot system information')
+          .setDescription('Show detailed bot system information'),
+        new SlashCommandBuilder()
+          .setName('history')
+          .setDescription('Show history of previous daily scramble challenges')
       ];
       
       const rest = new REST().setToken(process.env.DISCORD_TOKEN || '');
@@ -274,6 +279,93 @@ class DiscordBot {
         console.error('Error sending error reply:', replyError);
       }
     }
+  }
+  
+  /**
+   * Handle the /history command to show past scramble challenges
+   */
+  private async handleHistoryCommand(interaction: ChatInputCommandInteraction) {
+    try {
+      await interaction.deferReply();
+      
+      // Get all threads (including deleted ones)
+      const allThreads = await storage.getAllChallengeThreads();
+      
+      // Sort threads by ID in descending order to get most recent first
+      const sortedThreads = [...allThreads]
+        .sort((a, b) => b.id - a.id)
+        .slice(0, 10); // Get last 10 scrambles
+      
+      if (sortedThreads.length === 0) {
+        await interaction.editReply('No scramble history found. Try again after some daily challenges have been posted.');
+        return;
+      }
+      
+      // Create a rich embed for history information
+      const historyEmbed = new EmbedBuilder()
+        .setTitle('📜 Scramble Challenge History')
+        .setColor(0xF1C40F)
+        .setDescription('Here are the most recent daily scramble challenges:')
+        .setFooter({ text: `Daily Scramble Bot • ${new Date().toLocaleString()}` });
+      
+      // Create embedded fields for each scramble challenge
+      // Group challenges by cube type for better organization
+      const scramblesByType = new Map<string, ChallengeThread[]>();
+      
+      sortedThreads.forEach(thread => {
+        if (!scramblesByType.has(thread.cubeType)) {
+          scramblesByType.set(thread.cubeType, []);
+        }
+        const threadsOfType = scramblesByType.get(thread.cubeType);
+        if (threadsOfType) {
+          threadsOfType.push(thread);
+        }
+      });
+      
+      // Add fields for each cube type
+      scramblesByType.forEach((threads, cubeType) => {
+        let scrambleList = '';
+        
+        threads.forEach(thread => {
+          // Format date (would use createdAt from DB in production)
+          const date = new Date().toLocaleDateString();
+          const scrambleText = thread.scramble || 'Scramble text unavailable';
+          scrambleList += `• ${date}: \`${scrambleText}\`\n`;
+        });
+        
+        historyEmbed.addFields({ 
+          name: `${this.getCubeTypeEmoji(cubeType)} ${cubeType} Scrambles`, 
+          value: scrambleList.trim() || 'No scrambles available',
+          inline: false
+        });
+      });
+      
+      await interaction.editReply({ embeds: [historyEmbed] });
+    } catch (error) {
+      console.error('Error handling history command:', error);
+      try {
+        await interaction.editReply('An error occurred while retrieving scramble history. Please try again later.');
+      } catch (replyError) {
+        console.error('Error sending error reply:', replyError);
+      }
+    }
+  }
+  
+  /**
+   * Get emoji for a cube type
+   */
+  private getCubeTypeEmoji(cubeType: string): string {
+    const emojiMap: Record<string, string> = {
+      'Skewb': '🔄',
+      '3x3 BLD': '🙈',
+      '2x2': '🧊',
+      '3x3': '🎲',
+      'Pyraminx': '🔺',
+      '3x3 OH': '👋',
+      'Clock': '⏰'
+    };
+    
+    return emojiMap[cubeType] || '🧩';
   }
   
   /**

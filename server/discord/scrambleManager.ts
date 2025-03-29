@@ -1,4 +1,4 @@
-import { CubeType, daySchedule } from '@shared/schema';
+import { CubeType, cubeTypes, daySchedule } from '@shared/schema';
 import { generateScramble } from '@shared/scrambleGenerators';
 
 /**
@@ -36,15 +36,45 @@ export class ScrambleManager {
   }
   
   /**
+   * Convert string to valid CubeType
+   * @param cubeTypeStr String representation of cube type
+   * @returns Valid CubeType or default to 3x3
+   */
+  stringToCubeType(cubeTypeStr: string): CubeType {
+    // Convert to known cube type if possible
+    const knownTypes: Record<string, CubeType> = {
+      'skewb': cubeTypes.SKEWB,
+      'skb': cubeTypes.SKEWB,
+      '3x3 bld': cubeTypes.THREE_BLD,
+      '3bld': cubeTypes.THREE_BLD,
+      '2x2': cubeTypes.TWO,
+      '2': cubeTypes.TWO,
+      '3x3': cubeTypes.THREE,
+      '3': cubeTypes.THREE,
+      'pyraminx': cubeTypes.PYRAMINX,
+      'pyra': cubeTypes.PYRAMINX,
+      '3x3 oh': cubeTypes.THREE_OH,
+      '3oh': cubeTypes.THREE_OH,
+      'clock': cubeTypes.CLOCK,
+      'clk': cubeTypes.CLOCK
+    };
+    
+    const normalizedInput = cubeTypeStr.toLowerCase().trim();
+    return knownTypes[normalizedInput] || cubeTypes.THREE; // Default to 3x3 if not found
+  }
+
+  /**
    * Generate a scramble for a specific cube type
    * @param cubeType The cube type to generate a scramble for
    * @returns Object containing the cube type and scramble
    */
-  generateScrambleForType(cubeType: CubeType) {
-    const scramble = generateScramble(cubeType);
+  generateScrambleForType(cubeType: CubeType | string) {
+    // If it's a string, convert it to a proper CubeType
+    const actualCubeType = typeof cubeType === 'string' ? this.stringToCubeType(cubeType) : cubeType;
+    const scramble = generateScramble(actualCubeType);
     
     return {
-      cubeType,
+      cubeType: actualCubeType,
       scramble
     };
   }
