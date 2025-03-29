@@ -601,24 +601,62 @@ class DiscordBot {
       }
       
       try {
-        // Get the thread from Discord
-        const discordThread = await channel.threads.fetch(thread.threadId);
-        
-        if (discordThread) {
-          // Archive the thread instead of deleting it
-          await discordThread.setArchived(true);
-          await discordThread.setLocked(true);
+        console.log(`Attempting to fetch thread: ${thread.threadId}`);
+        // Get the thread from Discord with more detailed error handling
+        try {
+          // Fetch all threads in the channel first and log them
+          const allThreads = await channel.threads.fetchActive();
+          console.log(`Active threads in channel ${channel.id}: ${allThreads.threads.size}`);
           
-          // Send a final message to the thread
-          try {
-            await discordThread.send({
-              content: `🔒 This thread has been archived because it has expired. This is an automated action.`
-            });
-          } catch (messageError) {
-            console.warn(`Could not send final message to thread: ${messageError}`);
+          // Try to get the specific thread
+          const discordThread = await channel.threads.fetch(thread.threadId);
+          console.log(`Successfully fetched thread ${thread.threadId}`);
+          
+          if (discordThread) {
+            // Send a final message to the thread before archiving
+            try {
+              await discordThread.send({
+                content: `🔒 This thread has been archived because it has expired. This is an automated action.`
+              });
+              console.log(`Sent final message to thread ${thread.threadId}`);
+            } catch (messageError) {
+              console.warn(`Could not send final message to thread: ${messageError}`);
+            }
+            
+            // Archive the thread instead of deleting it
+            try {
+              await discordThread.setArchived(true);
+              console.log(`Set thread ${thread.threadId} as archived`);
+            } catch (archiveError) {
+              console.warn(`Error setting thread as archived: ${archiveError}`);
+            }
+            
+            try {
+              await discordThread.setLocked(true);
+              console.log(`Set thread ${thread.threadId} as locked`);
+            } catch (lockError) {
+              console.warn(`Error setting thread as locked: ${lockError}`);
+            }
+            
+            console.log(`Successfully archived expired thread: ${thread.threadId}`);
+            return; // Exit if successful
           }
-          
-          console.log(`Archived expired thread: ${thread.threadId}`);
+        } catch (fetchError) {
+          console.warn(`Error fetching thread ${thread.threadId}: ${fetchError}`);
+          // Attempt to find the thread in archived threads
+          try {
+            const archivedThreads = await channel.threads.fetchArchived();
+            console.log(`Archived threads in channel ${channel.id}: ${archivedThreads.threads.size}`);
+            
+            const archivedThread = archivedThreads.threads.get(thread.threadId);
+            if (archivedThread) {
+              console.log(`Thread ${thread.threadId} is already archived`);
+              // Thread is already archived, consider this a success
+              return;
+            }
+          } catch (archivedFetchError) {
+            console.warn(`Error fetching archived threads: ${archivedFetchError}`);
+          }
         }
       } catch (error: unknown) {
         // Thread might already be archived or inaccessible
