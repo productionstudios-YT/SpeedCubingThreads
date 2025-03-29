@@ -17,8 +17,11 @@ export class Scheduler {
     // Schedule the daily scramble posts at 4:00 PM IST
     this.scheduleScramblePosts();
     
-    // Schedule thread cleanup (check hourly for expired threads)
-    this.scheduleThreadCleanup();
+    // Schedule daily thread cleanup at 3:59 PM IST (right before new thread creation)
+    this.scheduleDailyThreadCleanup();
+    
+    // Schedule hourly checks for expired threads (as a backup)
+    this.scheduleHourlyThreadCleanup();
   }
   
   /**
