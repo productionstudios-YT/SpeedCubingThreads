@@ -545,10 +545,10 @@ class DiscordBot {
   }
   
   /**
-   * Delete a thread that has expired
-   * @param thread The thread data to delete
+   * Archive a thread that has expired
+   * @param thread The thread data to archive
    */
-  async deleteThread(thread: ChallengeThread): Promise<void> {
+  async archiveThread(thread: ChallengeThread): Promise<void> {
     if (!this.isReady) {
       throw new Error('Discord client is not ready yet');
     }
@@ -559,7 +559,7 @@ class DiscordBot {
       const channel = await guild.channels.fetch(thread.channelId) as TextChannel;
       
       if (!channel) {
-        console.warn(`Channel ${thread.channelId} not found, marking thread as deleted anyway`);
+        console.warn(`Channel ${thread.channelId} not found, marking thread as archived anyway`);
         return;
       }
       
@@ -568,17 +568,28 @@ class DiscordBot {
         const discordThread = await channel.threads.fetch(thread.threadId);
         
         if (discordThread) {
-          // Delete the thread
-          await discordThread.delete();
-          console.log(`Deleted expired thread: ${thread.threadId}`);
+          // Archive the thread instead of deleting it
+          await discordThread.setArchived(true);
+          await discordThread.setLocked(true);
+          
+          // Send a final message to the thread
+          try {
+            await discordThread.send({
+              content: `🔒 This thread has been archived because it has expired. This is an automated action.`
+            });
+          } catch (messageError) {
+            console.warn(`Could not send final message to thread: ${messageError}`);
+          }
+          
+          console.log(`Archived expired thread: ${thread.threadId}`);
         }
       } catch (error: unknown) {
-        // Thread might already be deleted or inaccessible
+        // Thread might already be archived or inaccessible
         const errorMessage = error instanceof Error ? error.message : String(error);
-        console.warn(`Thread ${thread.threadId} could not be deleted: ${errorMessage}`);
+        console.warn(`Thread ${thread.threadId} could not be archived: ${errorMessage}`);
       }
     } catch (error) {
-      console.error('Error deleting thread:', error);
+      console.error('Error archiving thread:', error);
       throw error;
     }
   }

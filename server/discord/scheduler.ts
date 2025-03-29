@@ -34,11 +34,11 @@ export class Scheduler {
       if (allThreads.length > 0) {
         for (const thread of allThreads) {
           try {
-            await discordBot.deleteThread(thread);
+            await discordBot.archiveThread(thread);
             await storage.markThreadAsDeleted(thread.id);
-            console.log(`Successfully cleaned up thread ${thread.id} before manual post`);
+            console.log(`Successfully archived thread ${thread.id} before manual post`);
           } catch (threadError) {
-            console.error(`Error cleaning up thread ${thread.id}:`, threadError);
+            console.error(`Error archiving thread ${thread.id}:`, threadError);
             // Continue with other threads even if one fails
           }
         }
@@ -88,12 +88,12 @@ export class Scheduler {
       let cleanedCount = 0;
       for (const thread of expiredThreads) {
         try {
-          await discordBot.deleteThread(thread);
+          await discordBot.archiveThread(thread);
           await storage.markThreadAsDeleted(thread.id);
           cleanedCount++;
-          console.log(`Successfully cleaned up thread ${thread.id}`);
+          console.log(`Successfully archived thread ${thread.id}`);
         } catch (error) {
-          console.error(`Error cleaning up thread ${thread.id}:`, error);
+          console.error(`Error archiving thread ${thread.id}:`, error);
           // Continue with other threads even if one fails
         }
       }
@@ -126,11 +126,11 @@ export class Scheduler {
           console.log(`Cleaning up ${allThreads.length} threads before posting new daily scramble`);
           for (const thread of allThreads) {
             try {
-              await discordBot.deleteThread(thread);
+              await discordBot.archiveThread(thread);
               await storage.markThreadAsDeleted(thread.id);
-              console.log(`Successfully cleaned up thread ${thread.id} before daily post`);
+              console.log(`Successfully archived thread ${thread.id} before daily post`);
             } catch (threadError) {
-              console.error(`Error cleaning up thread ${thread.id}:`, threadError);
+              console.error(`Error archiving thread ${thread.id}:`, threadError);
               // Continue with other threads even if one fails
             }
           }
@@ -161,7 +161,7 @@ export class Scheduler {
   }
   
   /**
-   * Schedule hourly checks for threads that need to be deleted
+   * Schedule hourly checks for threads that need to be archived
    * This is a backup clean-up mechanism in case the daily cleanup fails
    */
   private scheduleHourlyThreadCleanup() {
@@ -174,9 +174,9 @@ export class Scheduler {
         if (expiredThreads.length > 0) {
           console.log(`Found ${expiredThreads.length} expired threads to clean up`);
           for (const thread of expiredThreads) {
-            await discordBot.deleteThread(thread);
+            await discordBot.archiveThread(thread);
             await storage.markThreadAsDeleted(thread.id);
-            console.log(`Successfully cleaned up expired thread ${thread.id}`);
+            console.log(`Successfully archived expired thread ${thread.id}`);
           }
         } else {
           console.log('No expired threads found in hourly cleanup');
