@@ -370,10 +370,10 @@ export default function Home() {
                         </h2>
                         <p className="text-[#DCDDDE] mb-2">
                           This bot posts daily scramble challenges for different
-                          cube types based on the day of the week. Challenges
-                          are posted at 4:00 PM IST. All previous threads are automatically 
-                          cleaned up before posting new ones, and threads are
-                          also cleaned up hourly as a backup measure.
+                          cube types based on the day of the week. At exactly 4:00 PM IST,
+                          the bot first cleans up all existing threads and then immediately
+                          creates the new daily challenge. This ensures a clean slate for
+                          each day's challenge.
                         </p>
                         <div className="flex flex-wrap gap-2">
                           <span className="bg-[#202225] text-xs px-2 py-1 rounded">

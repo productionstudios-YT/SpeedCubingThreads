@@ -15,11 +15,8 @@ export class Scheduler {
    */
   async initialize() {
     // Schedule the daily scramble posts at 4:00 PM IST
-    // (now includes thread cleanup before posting)
+    // (now includes thread cleanup right before posting)
     this.scheduleScramblePosts();
-    
-    // Schedule hourly checks for expired threads (as a backup)
-    this.scheduleHourlyThreadCleanup();
   }
   
   /**
@@ -114,7 +111,8 @@ export class Scheduler {
    * Cron format: minute hour * * *
    * IST is UTC+5:30, so 10:30 UTC = 4:00 PM IST
    * 
-   * First cleans up all threads, then creates the new thread
+   * Right at 4:00 PM IST, it first cleans up all existing threads
+   * and then immediately creates the new thread for the day
    */
   private scheduleScramblePosts() {
     // At 10:30 UTC (4:00 PM IST)
