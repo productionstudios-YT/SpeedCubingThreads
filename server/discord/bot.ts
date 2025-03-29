@@ -352,7 +352,7 @@ class DiscordBot {
   }
   
   /**
-   * Get emoji for a cube type
+   * Get emoji for a cube type in embed display
    */
   private getCubeTypeEmoji(cubeType: string): string {
     const emojiMap: Record<string, string> = {
@@ -366,6 +366,23 @@ class DiscordBot {
     };
     
     return emojiMap[cubeType] || '🧩';
+  }
+  
+  /**
+   * Get custom emoji ID for a cube type for reactions
+   */
+  private getCubeTypeCustomEmoji(cubeType: string): string {
+    const emojiMap: Record<string, string> = {
+      'Skewb': 'skewb',
+      '3x3 BLD': '3x3bld',
+      '2x2': '2x2',
+      '3x3': '3x3',
+      'Pyraminx': 'pyraminx',
+      '3x3 OH': '3x3OH',
+      'Clock': 'clock~1'
+    };
+    
+    return emojiMap[cubeType] || '';
   }
   
   /**
@@ -462,9 +479,24 @@ class DiscordBot {
       }
       
       // Send content to the thread
+      let threadMessage;
       try {
-        await thread.send(threadContent);
+        threadMessage = await thread.send(threadContent);
         console.log(`Successfully sent content to thread`);
+        
+        // Add custom emoji reaction based on cube type
+        const cubeType = scrambleManager.getCubeTypeForDay();
+        const emojiName = this.getCubeTypeCustomEmoji(cubeType);
+        
+        if (emojiName) {
+          try {
+            await threadMessage.react(emojiName);
+            console.log(`Added reaction emoji ${emojiName} to thread message`);
+          } catch (reactionError) {
+            console.error(`Failed to add emoji reaction ${emojiName}:`, reactionError);
+            // Don't throw here, continue execution
+          }
+        }
       } catch (error) {
         console.error('Failed to send message to thread:', error);
         // Don't throw here, we already created the thread
@@ -604,7 +636,21 @@ Reply to this thread with your time if you'd like to participate!`;
         autoArchiveDuration: 1440,
       });
       
-      await thread.send(threadContent);
+      // Send content to thread with emoji reaction
+      let threadMessage = await thread.send(threadContent);
+      
+      // Add custom emoji reaction based on cube type
+      const emojiName = this.getCubeTypeCustomEmoji(cubeType);
+      
+      if (emojiName) {
+        try {
+          await threadMessage.react(emojiName);
+          console.log(`Added reaction emoji ${emojiName} to manual thread message`);
+        } catch (reactionError) {
+          console.error(`Failed to add emoji reaction ${emojiName}:`, reactionError);
+          // Don't throw here, continue execution
+        }
+      }
       
       // Calculate expiration time (24 hours from now)
       const expiresAt = new Date();
