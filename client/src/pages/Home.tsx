@@ -371,8 +371,9 @@ export default function Home() {
                         <p className="text-[#DCDDDE] mb-2">
                           This bot posts daily scramble challenges for different
                           cube types based on the day of the week. Challenges
-                          are posted at 4:00 PM IST and threads are
-                          automatically deleted after 24 hours.
+                          are posted at 4:00 PM IST. All previous threads are automatically 
+                          cleaned up before posting new ones, and threads are
+                          also cleaned up hourly as a backup measure.
                         </p>
                         <div className="flex flex-wrap gap-2">
                           <span className="bg-[#202225] text-xs px-2 py-1 rounded">
@@ -424,13 +425,13 @@ export default function Home() {
                               </>
                             ) : (
                               <>
-                                <i className="fas fa-broom mr-1"></i> Clean Up Threads
+                                <i className="fas fa-broom mr-1"></i> Manual Thread Cleanup
                               </>
                             )}
                           </Button>
                           <span className="bg-[#202225] text-xs px-2 py-1 rounded">
-                            <i className="fas fa-clock mr-1"></i> Auto Thread
-                            Cleanup
+                            <i className="fas fa-clock mr-1"></i> Auto Cleanup
+                            Before Posting
                           </span>
                         </div>
                       </div>
