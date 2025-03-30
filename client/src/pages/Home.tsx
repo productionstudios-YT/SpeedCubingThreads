@@ -66,14 +66,14 @@ function DiscordMessageEmulator() {
   // Get emoji representation for cube type
   const getCubeEmoji = (cubeType: string): string => {
     switch(cubeType) {
-      case cubeTypes.THREE: return "🧊";
-      case cubeTypes.TWO: return "🎲";
-      case cubeTypes.THREE_BLD: return "🙈";
-      case cubeTypes.THREE_OH: return "👆";
-      case cubeTypes.SKEWB: return "🔄";
-      case cubeTypes.PYRAMINX: return "🔺";
-      case cubeTypes.CLOCK: return "⏰";
-      default: return "🧊";
+      case cubeTypes.THREE: return "🟦"; // Standard 3x3 cube
+      case cubeTypes.TWO: return "🟨"; // 2x2 cube
+      case cubeTypes.THREE_BLD: return "🧠"; // Blindfolded
+      case cubeTypes.THREE_OH: return "🤚"; // One-handed
+      case cubeTypes.SKEWB: return "🔷"; // Skewb
+      case cubeTypes.PYRAMINX: return "🔺"; // Pyraminx
+      case cubeTypes.CLOCK: return "🕙"; // Clock
+      default: return "🟦";
     }
   };
   
@@ -124,22 +124,24 @@ function DiscordMessageEmulator() {
         <div className="mb-3 bg-[#2F3136] p-2 rounded-md">
           <div className="flex items-center">
             <span className="text-[#A3A6AA] mr-2">#</span>
-            <span className="text-white font-medium">{selectedCubeType} Scramble Challenge</span>
+            <span className="text-white font-medium">{selectedCubeType}</span>
           </div>
         </div>
         
         {/* Thread Content */}
         <div className="text-[#DCDDDE]">
           <div className="mb-2 text-xs text-[#A3A6AA]">
-            <span className="bg-[#4F545C] px-1 py-0.5 rounded text-[#DCDDDE]">@daily scramble ping</span>
+            <div className="inline-flex items-center">
+              <span className="bg-[#4F545C] px-1 py-0.5 rounded text-[#DCDDDE]">@daily scramble ping</span>
+            </div>
           </div>
           
           <div className="mb-3">
-            <p>🗓 <strong>Daily Scramble Challenge</strong> - {formatThreadDate()}</p>
-            <p>Today's challenge: <strong>{selectedCubeType}</strong> {getCubeEmoji(selectedCubeType)}</p>
+            <p>🗓 <strong>Today's Daily Scramble!</strong> {getCubeEmoji(selectedCubeType)}</p>
+            <p>Event: <strong>{selectedCubeType}</strong></p>
           </div>
           
-          <div className="mb-3 font-mono">
+          <div className="mb-3 bg-[#2F3136] p-2 rounded font-mono">
             {scramble}
           </div>
           
