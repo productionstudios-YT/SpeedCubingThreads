@@ -356,13 +356,13 @@ class DiscordBot {
    */
   private getCubeTypeEmoji(cubeType: string): string {
     const emojiMap: Record<string, string> = {
-      'Skewb': '🔄',
-      '3x3 BLD': '🙈',
-      '2x2': '🧊',
-      '3x3': '🎲',
+      'Skewb': '🔷',
+      '3x3 BLD': '🧠',
+      '2x2': '🟨',
+      '3x3': '🟦',
       'Pyraminx': '🔺',
-      '3x3 OH': '👋',
-      'Clock': '⏰'
+      '3x3 OH': '🤚',
+      'Clock': '🕙'
     };
     
     return emojiMap[cubeType] || '🧩';
@@ -485,8 +485,11 @@ class DiscordBot {
       // Create the thread with ping - with enhanced error handling
       let message;
       try {
-        // We'll create a single message for the thread
-        // No need for a ping here as we'll include it in the thread message
+        // Find the 'daily scramble ping' role in the guild
+        const pingRoleName = 'daily scramble ping';
+        const pingRoleId = await this.findRoleId(guild, pingRoleName);
+        
+        // Create a simple message for the thread
         message = await channel.send({ content: `Daily Scramble Challenge` });
         console.log(`Successfully sent initial message to channel`);
       } catch (error) {
@@ -687,31 +690,17 @@ class DiscordBot {
       const scrambleData = scrambleManager.generateScrambleForType(cubeType);
       const scramble = scrambleData.scramble;
       
-      // Create thread title and content
-      const currentDate = new Date();
-      const dateString = currentDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-      const threadTitle = `${dateString} - ${cubeType} Test Scramble`;
-      
-      // Create content
-      const threadContent = `${cubeType} Scramble Challenge
-||@daily scramble ping||
-
-Here's today's ${cubeType} scramble. Send Your Time And Reconstruction (optional) Here.
-
-${scramble}
-Good luck! 🍀`;
+      // Create thread title - just the cube type
+      const threadTitle = cubeType;
       
       // Find the 'daily scramble ping' role in the guild
       const pingRoleName = 'daily scramble ping';
       const pingRoleId = await this.findRoleId(guild, pingRoleName);
       
-      // Create ping content with role mention if role was found
-      let content = `Test scramble for ${cubeType} has been created!`;
-      if (pingRoleId) {
-        content += ` <@&${pingRoleId}>`;  // This is the proper way to mention a role
-      }
+      // Create message content
+      let content = `Daily Scramble Challenge`;
       
-      // Send message and create thread with ping
+      // Send message and create thread
       const message = await channel.send({ content });
       
       const thread = await message.startThread({
@@ -719,6 +708,16 @@ Good luck! 🍀`;
         autoArchiveDuration: 1440,
       });
       
+      // Create thread content with formatted scramble in a box
+      const threadContent = `# Today's Daily Scramble!
+||@daily scramble ping||
+
+\`\`\`
+${scramble}
+\`\`\`
+
+Good luck! 🍀`;
+
       // Send content to thread with emoji reaction
       let threadMessage = await thread.send(threadContent);
       

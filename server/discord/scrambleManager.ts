@@ -85,11 +85,9 @@ export class ScrambleManager {
    * @returns The formatted thread title
    */
   generateThreadTitle(date: Date = new Date()): string {
-    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const dayName = days[date.getDay()];
+    // Just the event name alone
     const cubeType = this.getCubeTypeForDay(date);
-    
-    return `${dayName} ${cubeType} Challenge`;
+    return cubeType;
   }
 
   /**
@@ -100,12 +98,13 @@ export class ScrambleManager {
   generateThreadContent(date: Date = new Date()): string {
     const { day, cubeType, scramble } = this.generateDailyScramble(date);
     
-    return `${cubeType} Scramble Challenge
+    return `# Today's Daily Scramble!
 ||@daily scramble ping||
 
-Here's today's ${cubeType} scramble. Send Your Time And Reconstruction (optional) Here.
-
+\`\`\`
 ${scramble}
+\`\`\`
+
 Good luck! 🍀`;
   }
 }

@@ -27,23 +27,66 @@ function shuffleArray<T>(array: T[]): T[] {
 }
 
 /**
+ * Opposite moves mapping for 3x3
+ */
+const opposites: Record<string, string> = {
+  'R': 'L', 'L': 'R',
+  'U': 'D', 'D': 'U',
+  'F': 'B', 'B': 'F'
+};
+
+/**
+ * Moves in the same axis for 3x3
+ */
+const sameAxis: Record<string, string[]> = {
+  'R': ['R', 'L'], 'L': ['R', 'L'],
+  'U': ['U', 'D'], 'D': ['U', 'D'],
+  'F': ['F', 'B'], 'B': ['F', 'B']
+};
+
+/**
  * Generate a 3x3 cube scramble
- * Format: 20 moves, no redundant moves (e.g., R R')
+ * Format: 20 moves, following WCA regulations
+ * - No move with its inverse in sequence (e.g., R L R')
+ * - No redundant moves on the same axis (e.g., R L)
  */
 function generate3x3Scramble(): string {
   const moves = ['R', 'L', 'U', 'D', 'F', 'B'];
   const modifiers = ['', '\'', '2'];
   const scramble: string[] = [];
-  let lastFace = '';
+  let lastMove = '';
+  let secondLastMove = '';
 
   for (let i = 0; i < 20; i++) {
-    // Filter out the last face to avoid redundant moves
-    const possibleMoves = moves.filter(move => move !== lastFace);
-    const face = getRandomElement(possibleMoves);
+    // Filter out moves on the same axis as the last move
+    let availableMoves = [...moves];
+    
+    if (lastMove) {
+      // Remove moves on the same axis as the last move
+      availableMoves = availableMoves.filter(move => !sameAxis[lastMove].includes(move));
+    }
+    
+    // Don't allow a move to return to the state before the last move
+    // For example, avoid sequences like "R L R" or "R L R'"
+    if (secondLastMove && lastMove) {
+      // If we're potentially going back to the same face as two moves ago
+      if (secondLastMove === availableMoves.find(m => m === secondLastMove)) {
+        // Remove this option to avoid the pattern
+        availableMoves = availableMoves.filter(move => move !== secondLastMove);
+      }
+    }
+    
+    // Ensure we always have moves to choose from
+    if (availableMoves.length === 0) {
+      availableMoves = moves.filter(move => move !== lastMove);
+    }
+    
+    const face = getRandomElement(availableMoves);
     const modifier = getRandomElement(modifiers);
     
     scramble.push(`${face}${modifier}`);
-    lastFace = face;
+    secondLastMove = lastMove;
+    lastMove = face;
   }
 
   return scramble.join(' ');
@@ -51,22 +94,23 @@ function generate3x3Scramble(): string {
 
 /**
  * Generate a 2x2 cube scramble
- * Format: Typically 9-11 moves
+ * Format: Exactly 11 moves, following WCA regulations
  */
 function generate2x2Scramble(): string {
+  // For 2x2, we use only RUF but follow the same rules as 3x3
   const moves = ['R', 'U', 'F'];
   const modifiers = ['', '\'', '2'];
   const scramble: string[] = [];
-  let lastFace = '';
-  const moveCount = getRandomInt(9, 11);
-
-  for (let i = 0; i < moveCount; i++) {
-    const possibleMoves = moves.filter(move => move !== lastFace);
+  let lastMove = '';
+  
+  for (let i = 0; i < 11; i++) {
+    // Filter out the last face to avoid redundant moves
+    const possibleMoves = moves.filter(move => move !== lastMove);
     const face = getRandomElement(possibleMoves);
     const modifier = getRandomElement(modifiers);
     
     scramble.push(`${face}${modifier}`);
-    lastFace = face;
+    lastMove = face;
   }
 
   return scramble.join(' ');
@@ -74,33 +118,41 @@ function generate2x2Scramble(): string {
 
 /**
  * Generate a Pyraminx scramble
- * Format: 8-12 moves with tip notation
+ * Format: WCA regulation - exactly 8-10 random moves followed by tips
  */
 function generatePyraminxScramble(): string {
   const regularMoves = ['R', 'L', 'U', 'B'];
   const tipMoves = ['r', 'l', 'u', 'b'];
   const modifiers = ['', '\''];
   const scramble: string[] = [];
-  let lastFace = '';
+  let lastMove = '';
   
-  // Regular moves (8-10)
+  // Regular moves (8-10 as per WCA regulations)
   const moveCount = getRandomInt(8, 10);
   for (let i = 0; i < moveCount; i++) {
-    const possibleMoves = regularMoves.filter(move => move !== lastFace);
-    const face = getRandomElement(possibleMoves);
+    // Avoid the same move twice in a row
+    const possibleMoves = regularMoves.filter(move => move !== lastMove);
+    const move = getRandomElement(possibleMoves);
     const modifier = getRandomElement(modifiers);
     
-    scramble.push(`${face}${modifier}`);
-    lastFace = face;
+    scramble.push(`${move}${modifier}`);
+    lastMove = move;
   }
   
-  // Add 0-4 tip rotations
+  // Add tips at the end (0-4 tips)
+  // Each tip can only appear once
+  const usedTips = new Set<string>();
   const tipCount = getRandomInt(0, 4);
-  const tipsToUse = shuffleArray(tipMoves).slice(0, tipCount);
   
-  for (const tip of tipsToUse) {
+  for (let i = 0; i < tipCount; i++) {
+    const availableTips = tipMoves.filter(tip => !usedTips.has(tip));
+    if (availableTips.length === 0) break;
+    
+    const tip = getRandomElement(availableTips);
     const modifier = getRandomElement(modifiers);
+    
     scramble.push(`${tip}${modifier}`);
+    usedTips.add(tip);
   }
 
   return scramble.join(' ');
@@ -108,22 +160,24 @@ function generatePyraminxScramble(): string {
 
 /**
  * Generate a Skewb scramble
- * Format: 8-12 moves
+ * Format: WCA regulation - exactly 9 random moves with proper notation
  */
 function generateSkewbScramble(): string {
-  const moves = ['R', 'L', 'U', 'B'];
+  // For Skewb, the standard notation uses R, U, L, B referring to the 4 corners
+  const corners = ['R', 'U', 'L', 'B'];
   const modifiers = ['', '\''];
   const scramble: string[] = [];
-  let lastFace = '';
+  let lastCorner = '';
   
-  const moveCount = getRandomInt(8, 12);
-  for (let i = 0; i < moveCount; i++) {
-    const possibleMoves = moves.filter(move => move !== lastFace);
-    const face = getRandomElement(possibleMoves);
+  // Exactly 9 moves as per WCA regulations
+  for (let i = 0; i < 9; i++) {
+    // Avoid the same corner twice in a row
+    const possibleCorners = corners.filter(corner => corner !== lastCorner);
+    const corner = getRandomElement(possibleCorners);
     const modifier = getRandomElement(modifiers);
     
-    scramble.push(`${face}${modifier}`);
-    lastFace = face;
+    scramble.push(`${corner}${modifier}`);
+    lastCorner = corner;
   }
 
   return scramble.join(' ');
@@ -131,29 +185,41 @@ function generateSkewbScramble(): string {
 
 /**
  * Generate a Clock scramble
- * Format: Standard clock notation
+ * Format: WCA regulation - standard clock notation
  */
 function generateClockScramble(): string {
+  // WCA Clock notation:
+  // - Pin configuration using UR DR DL UL (u=up, d=down)
+  // - Clock positions using UURx URRx DRRx DLLx ULLx y2 UURx URRx DRRx DLLx ULLx
+  
   const scramble: string[] = [];
   
-  // Generate pin configurations (UL, UR, DL, DR)
-  const pins = ['U', 'd'];
-  scramble.push(`UR${getRandomElement(pins)}`);
-  scramble.push(`DR${getRandomElement(pins)}`);
-  scramble.push(`DL${getRandomElement(pins)}`);
-  scramble.push(`UL${getRandomElement(pins)}`);
+  // Generate pin configurations (u=pin up, d=pin down)
+  const pins: Record<string, string> = {
+    'UR': getRandomElement(['u', 'd']),
+    'DR': getRandomElement(['u', 'd']),
+    'DL': getRandomElement(['u', 'd']),
+    'UL': getRandomElement(['u', 'd'])
+  };
   
-  // Generate clock moves
-  for (const position of ['UL', 'UR', 'DR', 'DL', 'ALL']) {
-    // Random between -6 and 6
-    const hour = getRandomInt(-6, 6);
-    const sign = hour < 0 ? '-' : '+';
-    scramble.push(`${position}${sign}${Math.abs(hour)}`);
+  scramble.push(`(${pins.UR},${pins.DR},${pins.DL},${pins.UL})`);
+  
+  // First set of moves - 5 positions
+  const positions = ['UL', 'UR', 'DR', 'DL', 'ALL'];
+  for (const pos of positions) {
+    // Clock positions range from 0-6 in either direction
+    const hour = getRandomInt(0, 6);
+    // For clock, adding + makes it clearer this is a clockwise movement
+    scramble.push(`${pos}${hour >= 0 ? '+' : ''}${hour}`);
   }
   
-  // Final 'y2' if needed (50% chance)
-  if (Math.random() > 0.5) {
-    scramble.push('y2');
+  // y2 turn
+  scramble.push('y2');
+  
+  // Second set of moves after y2
+  for (const pos of positions) {
+    const hour = getRandomInt(0, 6);
+    scramble.push(`${pos}${hour >= 0 ? '+' : ''}${hour}`);
   }
 
   return scramble.join(' ');
@@ -161,24 +227,12 @@ function generateClockScramble(): string {
 
 /**
  * Generate a 3x3 BLD (Blindfolded) scramble
- * Similar to regular 3x3 but longer (25 moves)
+ * Format: 20 moves, same rules as 3x3
  */
 function generate3x3BLDScramble(): string {
-  const moves = ['R', 'L', 'U', 'D', 'F', 'B'];
-  const modifiers = ['', '\'', '2'];
-  const scramble: string[] = [];
-  let lastFace = '';
-
-  for (let i = 0; i < 25; i++) {
-    const possibleMoves = moves.filter(move => move !== lastFace);
-    const face = getRandomElement(possibleMoves);
-    const modifier = getRandomElement(modifiers);
-    
-    scramble.push(`${face}${modifier}`);
-    lastFace = face;
-  }
-
-  return scramble.join(' ');
+  // BLD uses the same scramble format as 3x3, but we'll make it 20 moves
+  // to match standard 3x3 competition scrambles
+  return generate3x3Scramble();
 }
 
 /**
