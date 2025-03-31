@@ -369,20 +369,21 @@ class DiscordBot {
   }
   
   /**
-   * Get custom emoji ID for a cube type for reactions
+   * Get emoji for a cube type for reactions
+   * Using standard unicode emojis for reactions since custom emojis require the emoji to be in the server
    */
   private getCubeTypeCustomEmoji(cubeType: string): string {
     const emojiMap: Record<string, string> = {
-      'Skewb': 'skewb',
-      '3x3 BLD': '3x3bld',
-      '2x2': '2x2',
-      '3x3': '3x3',
-      'Pyraminx': 'pyraminx',
-      '3x3 OH': '3x3OH',
-      'Clock': 'clock~1'
+      'Skewb': '🔷',
+      '3x3 BLD': '🧠',
+      '2x2': '🟨',
+      '3x3': '🟦',
+      'Pyraminx': '🔺',
+      '3x3 OH': '🤚',
+      'Clock': '🕙'
     };
     
-    return emojiMap[cubeType] || '';
+    return emojiMap[cubeType] || '🧩';
   }
   
   /**
@@ -482,12 +483,14 @@ class DiscordBot {
       const threadContent = scrambleManager.generateThreadContent();
       console.log(`Generated thread title: ${threadTitle}`);
       
-      // Create the thread with ping - with enhanced error handling
+      // Create the thread with enhanced error handling
       let message;
       try {
         // Find the 'daily scramble ping' role in the guild
         const pingRoleName = 'daily scramble ping';
         const pingRoleId = await this.findRoleId(guild, pingRoleName);
+        
+        console.log(`Found role ID for "daily scramble ping": ${pingRoleId}`);
         
         // Create a simple message for the thread
         message = await channel.send({ content: `Daily Scramble Challenge` });
@@ -513,10 +516,28 @@ class DiscordBot {
       // Send content to the thread
       let threadMessage;
       try {
-        threadMessage = await thread.send(threadContent);
+        // Find the 'daily scramble ping' role in the guild
+        const pingRoleName = 'daily scramble ping';
+        const pingRoleId = await this.findRoleId(guild, pingRoleName);
+        
+        // Create a modified thread content that includes the role ping
+        let modifiedThreadContent = threadContent;
+        
+        // If we found the role ID, replace the placeholder with the actual role mention
+        if (pingRoleId) {
+          modifiedThreadContent = threadContent.replace(
+            '||@daily scramble ping||',
+            `<@&${pingRoleId}>`
+          );
+        } else {
+          // Otherwise, just remove the placeholder
+          modifiedThreadContent = threadContent.replace('||@daily scramble ping||', '');
+        }
+        
+        threadMessage = await thread.send(modifiedThreadContent);
         console.log(`Successfully sent content to thread`);
         
-        // Add custom emoji reaction based on cube type
+        // Add emoji reaction based on cube type
         const cubeType = scrambleManager.getCubeTypeForDay();
         const emojiName = this.getCubeTypeCustomEmoji(cubeType);
         
@@ -718,10 +739,24 @@ ${scramble}
 
 Good luck! 🍀`;
 
-      // Send content to thread with emoji reaction
-      let threadMessage = await thread.send(threadContent);
+      // Handle role pings in the thread content
+      let modifiedThreadContent = threadContent;
+        
+      // If we found the role ID, replace the placeholder with the actual role mention
+      if (pingRoleId) {
+        modifiedThreadContent = threadContent.replace(
+          '||@daily scramble ping||',
+          `<@&${pingRoleId}>`
+        );
+      } else {
+        // Otherwise, just remove the placeholder
+        modifiedThreadContent = threadContent.replace('||@daily scramble ping||', '');
+      }
       
-      // Add custom emoji reaction based on cube type
+      // Send content to thread with emoji reaction
+      let threadMessage = await thread.send(modifiedThreadContent);
+      
+      // Add emoji reaction based on cube type
       const emojiName = this.getCubeTypeCustomEmoji(cubeType);
       
       if (emojiName) {
