@@ -13,7 +13,22 @@
       }
     ]
   ],
-  "challengeThreads": [],
+  "challengeThreads": [
+    [
+      1,
+      {
+        "threadId": "1356213942908616704",
+        "channelId": "1295224323455582269",
+        "guildId": "1253928067198357575",
+        "cubeType": "Skewb",
+        "scramble": "L U L' R' U R U' B U R U' B",
+        "expiresAt": "2025-04-01T10:30:02.321Z",
+        "id": 1,
+        "createdAt": "2025-03-31T10:30:02.321Z",
+        "isDeleted": false
+      }
+    ]
+  ],
   "users": [
     [
       1,
@@ -39,6 +54,6 @@
     ]
   ],
   "botConfigCurrentId": 2,
-  "challengeThreadCurrentId": 1,
+  "challengeThreadCurrentId": 2,
   "userCurrentId": 3
 }
