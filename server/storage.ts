@@ -41,6 +41,85 @@ export class MemStorage implements IStorage {
     this.botConfigCurrentId = 1;
     this.challengeThreadCurrentId = 1;
     this.userCurrentId = 1;
+    
+    // Load data from file if exists
+    this.loadFromFile();
+  }
+  
+  /**
+   * Save current state to file for persistence between restarts
+   */
+  private saveToFile(): void {
+    const data = {
+      botConfigs: Array.from(this.botConfigs.entries()),
+      challengeThreads: Array.from(this.challengeThreads.entries()),
+      users: Array.from(this.users.entries()),
+      botConfigCurrentId: this.botConfigCurrentId,
+      challengeThreadCurrentId: this.challengeThreadCurrentId,
+      userCurrentId: this.userCurrentId
+    };
+    
+    try {
+      // Using Node.js native fs module in ESM context
+      import('node:fs').then(fs => {
+        fs.writeFileSync('./data-storage.json', JSON.stringify(data, null, 2));
+        console.log('Storage state saved to file');
+      }).catch(err => {
+        console.error('Error importing fs module:', err);
+      });
+    } catch (error) {
+      console.error('Error saving storage state to file:', error);
+    }
+  }
+  
+  /**
+   * Load state from file
+   */
+  private loadFromFile(): void {
+    try {
+      // Using dynamic import for fs in ESM context
+      import('node:fs').then(fs => {
+        if (fs.existsSync('./data-storage.json')) {
+          const data = JSON.parse(fs.readFileSync('./data-storage.json', 'utf8'));
+          
+          // Restore bot configs
+          data.botConfigs.forEach(([id, config]: [number, BotConfig]) => {
+            this.botConfigs.set(id, {
+              ...config
+            });
+          });
+          
+          // Restore challenge threads
+          data.challengeThreads.forEach(([id, thread]: [number, ChallengeThread]) => {
+            this.challengeThreads.set(id, {
+              ...thread,
+              createdAt: new Date(thread.createdAt),
+              expiresAt: new Date(thread.expiresAt)
+            });
+          });
+          
+          // Restore users
+          data.users.forEach(([id, user]: [number, User]) => {
+            this.users.set(id, {
+              ...user,
+              createdAt: new Date(user.createdAt),
+              lastLogin: user.lastLogin ? new Date(user.lastLogin) : null
+            });
+          });
+          
+          // Restore IDs
+          this.botConfigCurrentId = data.botConfigCurrentId;
+          this.challengeThreadCurrentId = data.challengeThreadCurrentId;
+          this.userCurrentId = data.userCurrentId;
+          
+          console.log('Storage state loaded from file');
+        }
+      }).catch(err => {
+        console.error('Error importing fs module:', err);
+      });
+    } catch (error) {
+      console.error('Error loading storage state from file:', error);
+    }
   }
   
   // Bot config methods
@@ -71,6 +150,7 @@ export class MemStorage implements IStorage {
       deleteAfterHours: config.deleteAfterHours || 24 // Default: 24 hours
     };
     this.botConfigs.set(id, newConfig);
+    this.saveToFile();
     return newConfig;
   }
   
@@ -80,11 +160,14 @@ export class MemStorage implements IStorage {
     
     const updatedConfig = { ...existingConfig, ...config };
     this.botConfigs.set(id, updatedConfig);
+    this.saveToFile();
     return updatedConfig;
   }
   
   async deleteBotConfig(id: number): Promise<boolean> {
-    return this.botConfigs.delete(id);
+    const result = this.botConfigs.delete(id);
+    this.saveToFile();
+    return result;
   }
   
   // Challenge thread methods
@@ -118,6 +201,7 @@ export class MemStorage implements IStorage {
       isDeleted: false 
     };
     this.challengeThreads.set(id, newThread);
+    this.saveToFile();
     return newThread;
   }
   
@@ -127,6 +211,7 @@ export class MemStorage implements IStorage {
     
     thread.isDeleted = true;
     this.challengeThreads.set(id, thread);
+    this.saveToFile();
     return true;
   }
   
@@ -156,6 +241,7 @@ export class MemStorage implements IStorage {
       lastLogin: null,
     };
     this.users.set(id, newUser);
+    this.saveToFile();
     return newUser;
   }
   
@@ -165,6 +251,7 @@ export class MemStorage implements IStorage {
     
     user.lastLogin = new Date();
     this.users.set(id, user);
+    this.saveToFile();
     return user;
   }
 }

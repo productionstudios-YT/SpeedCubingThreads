@@ -1,0 +1,44 @@
+{
+  "botConfigs": [
+    [
+      1,
+      {
+        "id": 1,
+        "channelId": "1295224323455582269",
+        "guildId": "1253928067198357575",
+        "timeToPost": "16:00",
+        "timezone": "Asia/Kolkata",
+        "enabled": true,
+        "deleteAfterHours": 24
+      }
+    ]
+  ],
+  "challengeThreads": [],
+  "users": [
+    [
+      1,
+      {
+        "id": 1,
+        "username": "developer",
+        "passwordHash": "$2b$10$Mz3PnwyS3eY5uNea/5aumuRo.RIBlD70NqI.qdECOmaB.dQixAinu",
+        "role": "developer",
+        "createdAt": "2025-03-31T07:02:57.166Z",
+        "lastLogin": null
+      }
+    ],
+    [
+      2,
+      {
+        "id": 2,
+        "username": "owner",
+        "passwordHash": "$2b$10$omxlJmxzUjz2y.eir6lkhe.aoCmd9l8C2DMdNiuOGsT.pHNQdKy9a",
+        "role": "owner",
+        "createdAt": "2025-03-31T07:02:57.249Z",
+        "lastLogin": null
+      }
+    ]
+  ],
+  "botConfigCurrentId": 2,
+  "challengeThreadCurrentId": 1,
+  "userCurrentId": 3
+}
