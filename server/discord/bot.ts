@@ -72,6 +72,8 @@ class DiscordBot {
         await this.handleBotCommand(interaction);
       } else if (interaction.commandName === 'history') {
         await this.handleHistoryCommand(interaction);
+      } else if (interaction.commandName === 'react_emoji') {
+        await this.handleReactEmojiCommand(interaction);
       }
     });
   }
@@ -95,7 +97,29 @@ class DiscordBot {
           .setDescription('Show detailed bot system information'),
         new SlashCommandBuilder()
           .setName('history')
-          .setDescription('Show history of previous daily scramble challenges')
+          .setDescription('Show history of previous daily scramble challenges'),
+        new SlashCommandBuilder()
+          .setName('react_emoji')
+          .setDescription('Configure custom emoji reactions for scramble types')
+          .addStringOption(option => 
+            option.setName('cube_type')
+              .setDescription('The type of cube to configure an emoji for')
+              .setRequired(true)
+              .addChoices(
+                { name: '2x2', value: '2x2' },
+                { name: '3x3', value: '3x3' },
+                { name: '3x3 BLD', value: '3x3 BLD' },
+                { name: '3x3 OH', value: '3x3 OH' },
+                { name: 'Pyraminx', value: 'Pyraminx' },
+                { name: 'Skewb', value: 'Skewb' },
+                { name: 'Clock', value: 'Clock' }
+              )
+          )
+          .addStringOption(option =>
+            option.setName('emoji')
+              .setDescription('The emoji to use for the selected cube type (Unicode emoji only)')
+              .setRequired(true)
+          )
       ];
       
       const rest = new REST().setToken(process.env.DISCORD_TOKEN || '');
@@ -355,7 +379,8 @@ class DiscordBot {
    * Get emoji for a cube type in embed display
    */
   private getCubeTypeEmoji(cubeType: string): string {
-    const emojiMap: Record<string, string> = {
+    // Default emoji map
+    const defaultEmojiMap: Record<string, string> = {
       'Skewb': '🔷',
       '3x3 BLD': '🧠',
       '2x2': '🟨',
@@ -365,7 +390,13 @@ class DiscordBot {
       'Clock': '🕙'
     };
     
-    return emojiMap[cubeType] || '🧩';
+    // Check if we have a custom emoji for this cube type
+    if (this.customEmojiMap[cubeType]) {
+      return this.customEmojiMap[cubeType];
+    }
+    
+    // Otherwise return the default emoji or fallback
+    return defaultEmojiMap[cubeType as keyof typeof defaultEmojiMap] || '🧩';
   }
   
   /**
@@ -373,17 +404,8 @@ class DiscordBot {
    * Using standard unicode emojis for reactions since custom emojis require the emoji to be in the server
    */
   private getCubeTypeCustomEmoji(cubeType: string): string {
-    const emojiMap: Record<string, string> = {
-      'Skewb': '🔷',
-      '3x3 BLD': '🧠',
-      '2x2': '🟨',
-      '3x3': '🟦',
-      'Pyraminx': '🔺',
-      '3x3 OH': '🤚',
-      'Clock': '🕙'
-    };
-    
-    return emojiMap[cubeType] || '🧩';
+    // Use the same function as regular emoji for consistency
+    return this.getCubeTypeEmoji(cubeType);
   }
   
   /**
@@ -789,6 +811,99 @@ Good luck! 🍀`;
     } catch (error) {
       console.error('Error creating manual scramble thread:', error);
       throw error;
+    }
+  }
+  
+  /**
+   * Handle the /react_emoji command to set custom emoji reactions for cube types
+   * Only allows users with the "Owner{Pin if problem.}" role to use this command
+   */
+  // Store custom emoji mappings (this would be in a database in a full implementation)
+  private customEmojiMap: Record<string, string> = {};
+
+  /**
+   * Handle the /react_emoji command to set custom emoji reactions for cube types
+   * Only allows users with the "Owner{Pin if problem.}" role to use this command
+   */
+  private async handleReactEmojiCommand(interaction: ChatInputCommandInteraction) {
+    try {
+      // First, check if the user has the required role
+      if (!interaction.inGuild()) {
+        await interaction.reply({ 
+          content: 'This command can only be used in a server.', 
+          ephemeral: true 
+        });
+        return;
+      }
+      
+      // Check if the user has the "Owner{Pin if problem.}" role
+      const member = await interaction.guild!.members.fetch(interaction.user.id);
+      const hasRequiredRole = member.roles.cache.some(
+        role => role.name === 'Owner{Pin if problem.}'
+      );
+      
+      if (!hasRequiredRole) {
+        await interaction.reply({ 
+          content: 'You need the "Owner{Pin if problem.}" role to use this command.', 
+          ephemeral: true 
+        });
+        return;
+      }
+      
+      await interaction.deferReply();
+      
+      // Get the command options
+      const cubeType = interaction.options.getString('cube_type', true);
+      const emoji = interaction.options.getString('emoji', true);
+      
+      // Very basic emoji validation (ensure at least one character and not too long)
+      if (emoji.length === 0 || emoji.length > 10) {
+        await interaction.editReply('Invalid emoji format. Please provide a single emoji character.');
+        return;
+      }
+      
+      // Update the custom emoji map with the new emoji
+      this.customEmojiMap[cubeType] = emoji;
+      
+      // Get the default emoji map
+      const defaultEmojiMap = {
+        'Skewb': '🔷',
+        '3x3 BLD': '🧠',
+        '2x2': '🟨',
+        '3x3': '🟦',
+        'Pyraminx': '🔺',
+        '3x3 OH': '🤚',
+        'Clock': '🕙'
+      };
+      
+      // Create a combined map for display purposes
+      const combinedMap = { ...defaultEmojiMap, ...this.customEmojiMap };
+      
+      // Create response embed with table of current emoji mappings
+      const emojiTable = Object.entries(combinedMap)
+        .map(([type, emoji]) => `${type}: ${emoji}${type === cubeType ? ' ← Updated!' : ''}`)
+        .join('\n');
+      
+      const embed = new EmbedBuilder()
+        .setTitle('🧩 Cube Type Emoji Configuration')
+        .setDescription(`Successfully updated emoji for **${cubeType}** to ${emoji}`)
+        .addFields({
+          name: 'Current Emoji Mappings',
+          value: emojiTable
+        })
+        .setColor(0x2ECC71)
+        .setFooter({ text: `Updated by ${interaction.user.tag}` });
+      
+      await interaction.editReply({ embeds: [embed] });
+      
+      console.log(`Emoji for ${cubeType} updated to ${emoji} by ${interaction.user.tag}`);
+    } catch (error) {
+      console.error('Error handling react_emoji command:', error);
+      try {
+        await interaction.editReply('An error occurred while updating the emoji configuration. Please try again later.');
+      } catch (replyError) {
+        console.error('Error sending error reply:', replyError);
+      }
     }
   }
   
