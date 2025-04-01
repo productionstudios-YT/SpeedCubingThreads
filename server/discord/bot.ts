@@ -19,7 +19,23 @@ class DiscordBot {
       ]
     });
     
+    // Setup event handlers first
     this.setupEventHandlers();
+    
+    // Load custom emoji mappings (asynchronously - will be available by the time we need them)
+    this.initializeEmojiMap();
+  }
+  
+  /**
+   * Initialize emoji map asynchronously
+   */
+  private async initializeEmojiMap() {
+    try {
+      await this.loadCustomEmojiMap();
+      console.log('Custom emoji mappings initialized');
+    } catch (error) {
+      console.error('Error initializing emoji mappings:', error);
+    }
   }
   
   /**
@@ -543,6 +559,18 @@ class DiscordBot {
   }
   
   /**
+   * Check if today is April 1st (April Fools Day)
+   * @returns boolean indicating if today is April Fools Day
+   */
+  private isAprilFoolsDay(): boolean {
+    const today = new Date();
+    const month = today.getMonth(); // 0-indexed, so April is 3
+    const day = today.getDate();
+    
+    return (month === 3 && day === 1);
+  }
+  
+  /**
    * Create a daily scramble thread in the specified channel
    * @param config The bot configuration
    */
@@ -651,6 +679,37 @@ class DiscordBot {
             console.error(`Failed to add emoji reaction ${emojiName}:`, reactionError);
             // Don't throw here, continue execution
           }
+        }
+        
+        // Special April Fools message (only when April Fools method returns true)
+        if (this.isAprilFoolsDay()) {
+          console.log("🎭 It's April Fools Day! Sending Rick Roll message...");
+          
+          // Wait a moment before sending the Rick Roll
+          await new Promise(resolve => setTimeout(resolve, 3000));
+          
+          // Create a fancy embed for the Rick Roll
+          const aprilFoolsEmbed = new EmbedBuilder()
+            .setTitle('🎵 Never Gonna Give You Up 🎵')
+            .setDescription(
+              "We're no strangers to puzzles,\n" +
+              "You know the rules, and so do I!\n" +
+              "A full commitment's what I'm thinking of,\n" +
+              "You wouldn't get this from any other bot!\n\n" +
+              "Happy April Fools from the Speedcubing Community! 🎉"
+            )
+            .setColor(0xFF3366)
+            .setImage('https://media.giphy.com/media/g7GKcSzwQfugw/giphy.gif')
+            .setFooter({ text: 'Never gonna cube you up, never gonna solve you down!' });
+            
+          await thread.send({ embeds: [aprilFoolsEmbed] });
+          
+          // Add a follow-up message with a special "Rick Roll" scramble
+          await thread.send({
+            content: "**APRIL FOOLS BONUS SCRAMBLE:**\n" +
+                    "```\nR I C K R O L L D R' U' B' F' L' D' Y'\n```\n" +
+                    "(Just for fun! Use the real scramble above for today's challenge 😄)"
+          });
         }
       } catch (error) {
         console.error('Failed to send message to thread:', error);
@@ -871,6 +930,37 @@ Good luck! 🍀`;
         }
       }
       
+      // Special April Fools message for test threads too!
+      if (this.isAprilFoolsDay()) {
+        console.log("🎭 It's April Fools Day! Sending Rick Roll message in test thread...");
+        
+        // Wait a moment before sending the Rick Roll
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        
+        // Create a fancy embed for the Rick Roll
+        const aprilFoolsEmbed = new EmbedBuilder()
+          .setTitle('🎵 Never Gonna Give You Up 🎵')
+          .setDescription(
+            "We're no strangers to puzzles,\n" +
+            "You know the rules, and so do I!\n" +
+            "A full commitment's what I'm thinking of,\n" +
+            "You wouldn't get this from any other bot!\n\n" +
+            "Happy April Fools from the Speedcubing Community! 🎉"
+          )
+          .setColor(0xFF3366)
+          .setImage('https://media.giphy.com/media/g7GKcSzwQfugw/giphy.gif')
+          .setFooter({ text: 'Never gonna cube you up, never gonna solve you down!' });
+          
+        await thread.send({ embeds: [aprilFoolsEmbed] });
+        
+        // Add a follow-up message with a special "Rick Roll" scramble
+        await thread.send({
+          content: "**APRIL FOOLS BONUS SCRAMBLE:**\n" +
+                  "```\nR I C K R O L L D R' U' B' F' L' D' Y'\n```\n" +
+                  "(Just for fun! Use the real scramble above for today's challenge 😄)"
+        });
+      }
+      
       // Calculate expiration time (24 hours from now)
       const expiresAt = new Date();
       expiresAt.setHours(expiresAt.getHours() + 24); // Default to 24 hours for test threads
@@ -895,11 +985,51 @@ Good luck! 🍀`;
   }
   
   /**
-   * Handle the /react_emoji command to set custom emoji reactions for cube types
-   * Only allows users with the "Owner{Pin if problem.}" role to use this command
+   * Store custom emoji mappings (persisted to file)
    */
-  // Store custom emoji mappings (this would be in a database in a full implementation)
   private customEmojiMap: Record<string, string> = {};
+  
+  /**
+   * Load custom emoji mappings from file
+   */
+  private async loadCustomEmojiMap() {
+    try {
+      // Import fs with dynamic import for ESM compatibility
+      const fs = await import('fs/promises');
+      
+      try {
+        // Check if file exists and read it
+        const data = await fs.readFile('./emoji-config.json', 'utf8');
+        this.customEmojiMap = JSON.parse(data);
+        console.log('Loaded custom emoji mappings from file:', this.customEmojiMap);
+      } catch (fileError) {
+        // File doesn't exist or can't be read
+        if ((fileError as NodeJS.ErrnoException).code === 'ENOENT') {
+          console.log('No custom emoji config file found, using defaults');
+        } else {
+          throw fileError;
+        }
+      }
+    } catch (error) {
+      console.error('Error loading custom emoji mappings:', error);
+      // Continue with empty map if file can't be loaded
+    }
+  }
+  
+  /**
+   * Save custom emoji mappings to file
+   */
+  private async saveCustomEmojiMap() {
+    try {
+      // Import fs with dynamic import for ESM compatibility
+      const fs = await import('fs/promises');
+      
+      await fs.writeFile('./emoji-config.json', JSON.stringify(this.customEmojiMap, null, 2));
+      console.log('Saved custom emoji mappings to file');
+    } catch (error) {
+      console.error('Error saving custom emoji mappings:', error);
+    }
+  }
 
   /**
    * Handle the /react_emoji command to set custom emoji reactions for cube types
@@ -958,6 +1088,14 @@ Good luck! 🍀`;
       
       // Update the custom emoji map with the new emoji
       this.customEmojiMap[cubeType] = emoji;
+      
+      // Save the updated emoji map to file (async operation)
+      try {
+        await this.saveCustomEmojiMap();
+      } catch (saveError) {
+        console.error('Error saving emoji map:', saveError);
+        // Continue anyway since the emoji is already in memory
+      }
       
       // Get the default emoji map
       const defaultEmojiMap = {

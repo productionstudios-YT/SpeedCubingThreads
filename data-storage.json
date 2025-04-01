@@ -25,6 +25,20 @@
         "expiresAt": "2025-04-01T10:30:02.321Z",
         "id": 1,
         "createdAt": "2025-03-31T10:30:02.321Z",
+        "isDeleted": true
+      }
+    ],
+    [
+      2,
+      {
+        "threadId": "1356584591477047397",
+        "channelId": "1295224323455582269",
+        "guildId": "1253928067198357575",
+        "cubeType": "3x3 BLD",
+        "scramble": "L D R' B U2 F L' D F U' L2 F2 D2 B2 L D' R2 B2 U R'",
+        "expiresAt": "2025-04-02T11:02:55.265Z",
+        "id": 2,
+        "createdAt": "2025-04-01T11:02:55.265Z",
         "isDeleted": false
       }
     ]
@@ -38,7 +52,7 @@
         "passwordHash": "$2b$10$Mz3PnwyS3eY5uNea/5aumuRo.RIBlD70NqI.qdECOmaB.dQixAinu",
         "role": "developer",
         "createdAt": "2025-03-31T07:02:57.166Z",
-        "lastLogin": null
+        "lastLogin": "2025-04-01T11:01:42.111Z"
       }
     ],
     [
@@ -54,6 +68,6 @@
     ]
   ],
   "botConfigCurrentId": 2,
-  "challengeThreadCurrentId": 2,
+  "challengeThreadCurrentId": 3,
   "userCurrentId": 3
 }
