@@ -1081,16 +1081,32 @@ Good luck! 🍀`;
       // Enhanced emoji validation
       console.log(`Validating emoji: "${emoji}" (length: ${emoji.length})`);
       
-      // First check for empty or too long
-      if (emoji.length === 0 || emoji.length > 10) {
-        console.log('Emoji validation failed: empty or too long');
-        await interaction.editReply('Invalid emoji format. Please provide a single emoji character.');
+      // Check for empty
+      if (emoji.length === 0) {
+        console.log('Emoji validation failed: empty');
+        await interaction.editReply('Invalid emoji format. Please provide an emoji.');
         return;
       }
       
-      // Simplified validation without regex
-      // We'll just allow any input that's not too long at this point
-      // Discord will validate it when we try to use it as a reaction later
+      // Check if it's a custom Discord emoji (format: <:name:id>)
+      const isCustomEmoji = emoji.match(/<:.+?:\d+>/);
+      const isAnimatedCustomEmoji = emoji.match(/<a:.+?:\d+>/);
+      
+      if (isCustomEmoji || isAnimatedCustomEmoji) {
+        console.log('Custom Discord emoji detected:', emoji);
+        // Custom emojis are allowed, but inform user they might not be usable as reactions
+        // if the bot doesn't have access to the server where the emoji is from
+        await interaction.followUp({
+          content: 'Note: Custom Discord emojis can only be used if the bot has access to the server where the emoji is from. If reactions fail, try using a standard emoji instead.',
+          ephemeral: true
+        });
+      } else if (emoji.length > 10) {
+        // If it's not a custom emoji, it should be short
+        console.log('Emoji validation failed: too long for standard emoji');
+        await interaction.editReply('Invalid emoji format. Please provide a single standard emoji character or a custom Discord emoji.');
+        return;
+      }
+      
       console.log('Emoji validation passed, proceeding with emoji:', emoji);
       
       // Update the custom emoji map with the new emoji
