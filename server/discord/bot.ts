@@ -88,11 +88,48 @@ class DiscordBot {
     }
     
     try {
-      // First, create the react_emoji command explicitly with all options
+      const rest = new REST().setToken(process.env.DISCORD_TOKEN || '');
+      const guildId = '1253928067198357575'; // Your specific guild ID
+      
+      // STEP 1: Delete all existing commands (global and guild-specific)
+      console.log("STEP 1: Deleting ALL existing commands to start fresh...");
+      
+      // Delete global commands
+      try {
+        console.log("Deleting global commands...");
+        await rest.put(
+          Routes.applicationCommands(this.client.user.id),
+          { body: [] }
+        );
+        console.log("Successfully deleted all global commands");
+      } catch (error) {
+        console.error("Error deleting global commands:", error);
+      }
+      
+      // Delete guild-specific commands
+      try {
+        console.log(`Deleting guild commands for guild ${guildId}...`);
+        await rest.put(
+          Routes.applicationGuildCommands(this.client.user.id, guildId),
+          { body: [] }
+        );
+        console.log(`Successfully deleted all commands from guild ${guildId}`);
+      } catch (error) {
+        console.error(`Error deleting guild commands for guild ${guildId}:`, error);
+      }
+      
+      // Wait a moment for Discord to process the deletion
+      console.log("Waiting for Discord to process command deletions...");
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // STEP 2: Create new command definitions
+      console.log("STEP 2: Creating new command definitions...");
+      
+      // Create react_emoji command
       console.log('Creating react_emoji command definition');
       const reactEmojiCommand = new SlashCommandBuilder()
         .setName('react_emoji')
-        .setDescription('Configure custom emoji reactions for scramble types (Owner only)')
+        .setDescription('Configure custom emoji reactions for cube types (Owner only)')
         .addStringOption(option => 
           option.setName('cube_type')
             .setDescription('The type of cube to configure an emoji for')
@@ -113,54 +150,40 @@ class DiscordBot {
             .setRequired(true)
         );
       
-      console.log('Completed react_emoji command definition');
-            
-      // Define all commands
+      // Create other commands
+      const dailyCommand = new SlashCommandBuilder()
+        .setName('daily')
+        .setDescription('Show information about the daily scramble bot status');
+        
+      const botCommand = new SlashCommandBuilder()
+        .setName('bot')
+        .setDescription('Show detailed bot system information');
+        
+      const historyCommand = new SlashCommandBuilder()
+        .setName('history')
+        .setDescription('Show history of previous daily scramble challenges');
+      
+      // Combine all commands
       const commands = [
-        new SlashCommandBuilder()
-          .setName('daily')
-          .setDescription('Show information about the daily scramble bot status'),
-        new SlashCommandBuilder()
-          .setName('bot')
-          .setDescription('Show detailed bot system information'),
-        new SlashCommandBuilder()
-          .setName('history')
-          .setDescription('Show history of previous daily scramble challenges'),
+        dailyCommand,
+        botCommand,
+        historyCommand,
         reactEmojiCommand
       ];
       
-      // Log all commands being registered
+      // Log commands being registered
       commands.forEach(cmd => {
         console.log(`Registering command: ${cmd.name} with description: "${cmd.description}"`);
       });
       
-      const rest = new REST().setToken(process.env.DISCORD_TOKEN || '');
+      // STEP 3: Register ONLY guild-specific commands
+      console.log(`STEP 3: Registering commands to specific guild: ${guildId}`);
       
-      console.log('Started refreshing application (/) commands');
-      
-      // Only register commands to the specific guild for faster updates
-      // This helps avoid duplicate commands that could happen when registering both globally and per guild
-      const guildId = '1253928067198357575'; // Your guild ID
-      console.log(`Registering commands to specific guild: ${guildId}`);
-      
-      // Delete any existing global commands first
-      console.log("Removing global commands to avoid duplicates...");
-      try {
-        await rest.put(
-          Routes.applicationCommands(this.client.user.id),
-          { body: [] }
-        );
-        console.log("Successfully cleared global commands");
-      } catch (error) {
-        console.error("Error clearing global commands:", error);
-      }
-      
-      // Register commands only to the specific guild
       await rest.put(
         Routes.applicationGuildCommands(this.client.user.id, guildId),
-        { body: commands }
+        { body: commands.map(cmd => cmd.toJSON()) }
       );
-      console.log(`Successfully registered commands to guild: ${guildId}`);
+      console.log(`Successfully registered ${commands.length} guild commands to guild: ${guildId}`);
       
       console.log('Successfully registered application (/) commands');
     } catch (error) {
