@@ -138,26 +138,29 @@ class DiscordBot {
       
       console.log('Started refreshing application (/) commands');
       
-      // Get all guilds the bot is in
-      const guilds = this.client.guilds.cache.map(g => g.id);
-      console.log(`The bot is in ${guilds.length} guild(s): ${guilds.join(', ')}`);
+      // Only register commands to the specific guild for faster updates
+      // This helps avoid duplicate commands that could happen when registering both globally and per guild
+      const guildId = '1253928067198357575'; // Your guild ID
+      console.log(`Registering commands to specific guild: ${guildId}`);
       
-      // Register commands to all guilds individually for faster updates
-      // Global commands can take up to an hour to propagate
-      for (const guildId of guilds) {
-        console.log(`Registering commands to guild: ${guildId}`);
+      // Delete any existing global commands first
+      console.log("Removing global commands to avoid duplicates...");
+      try {
         await rest.put(
-          Routes.applicationGuildCommands(this.client.user.id, guildId),
-          { body: commands }
+          Routes.applicationCommands(this.client.user.id),
+          { body: [] }
         );
-        console.log(`Successfully registered commands to guild: ${guildId}`);
+        console.log("Successfully cleared global commands");
+      } catch (error) {
+        console.error("Error clearing global commands:", error);
       }
       
-      // Also register global commands (these take longer to propagate)
+      // Register commands only to the specific guild
       await rest.put(
-        Routes.applicationCommands(this.client.user.id),
+        Routes.applicationGuildCommands(this.client.user.id, guildId),
         { body: commands }
       );
+      console.log(`Successfully registered commands to guild: ${guildId}`);
       
       console.log('Successfully registered application (/) commands');
     } catch (error) {
