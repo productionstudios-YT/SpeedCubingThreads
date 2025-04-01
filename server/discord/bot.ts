@@ -88,6 +88,34 @@ class DiscordBot {
     }
     
     try {
+      // First, create the react_emoji command explicitly with all options
+      console.log('Creating react_emoji command definition');
+      const reactEmojiCommand = new SlashCommandBuilder()
+        .setName('react_emoji')
+        .setDescription('Configure custom emoji reactions for scramble types (Owner only)')
+        .addStringOption(option => 
+          option.setName('cube_type')
+            .setDescription('The type of cube to configure an emoji for')
+            .setRequired(true)
+            .addChoices(
+              { name: '2x2', value: '2x2' },
+              { name: '3x3', value: '3x3' },
+              { name: '3x3 BLD', value: '3x3 BLD' },
+              { name: '3x3 OH', value: '3x3 OH' },
+              { name: 'Pyraminx', value: 'Pyraminx' },
+              { name: 'Skewb', value: 'Skewb' },
+              { name: 'Clock', value: 'Clock' }
+            )
+        )
+        .addStringOption(option =>
+          option.setName('emoji')
+            .setDescription('The emoji to use for the selected cube type (Unicode emoji only)')
+            .setRequired(true)
+        );
+      
+      console.log('Completed react_emoji command definition');
+            
+      // Define all commands
       const commands = [
         new SlashCommandBuilder()
           .setName('daily')
@@ -98,34 +126,34 @@ class DiscordBot {
         new SlashCommandBuilder()
           .setName('history')
           .setDescription('Show history of previous daily scramble challenges'),
-        new SlashCommandBuilder()
-          .setName('react_emoji')
-          .setDescription('Configure custom emoji reactions for scramble types')
-          .addStringOption(option => 
-            option.setName('cube_type')
-              .setDescription('The type of cube to configure an emoji for')
-              .setRequired(true)
-              .addChoices(
-                { name: '2x2', value: '2x2' },
-                { name: '3x3', value: '3x3' },
-                { name: '3x3 BLD', value: '3x3 BLD' },
-                { name: '3x3 OH', value: '3x3 OH' },
-                { name: 'Pyraminx', value: 'Pyraminx' },
-                { name: 'Skewb', value: 'Skewb' },
-                { name: 'Clock', value: 'Clock' }
-              )
-          )
-          .addStringOption(option =>
-            option.setName('emoji')
-              .setDescription('The emoji to use for the selected cube type (Unicode emoji only)')
-              .setRequired(true)
-          )
+        reactEmojiCommand
       ];
+      
+      // Log all commands being registered
+      commands.forEach(cmd => {
+        console.log(`Registering command: ${cmd.name} with description: "${cmd.description}"`);
+      });
       
       const rest = new REST().setToken(process.env.DISCORD_TOKEN || '');
       
       console.log('Started refreshing application (/) commands');
       
+      // Get all guilds the bot is in
+      const guilds = this.client.guilds.cache.map(g => g.id);
+      console.log(`The bot is in ${guilds.length} guild(s): ${guilds.join(', ')}`);
+      
+      // Register commands to all guilds individually for faster updates
+      // Global commands can take up to an hour to propagate
+      for (const guildId of guilds) {
+        console.log(`Registering commands to guild: ${guildId}`);
+        await rest.put(
+          Routes.applicationGuildCommands(this.client.user.id, guildId),
+          { body: commands }
+        );
+        console.log(`Successfully registered commands to guild: ${guildId}`);
+      }
+      
+      // Also register global commands (these take longer to propagate)
       await rest.put(
         Routes.applicationCommands(this.client.user.id),
         { body: commands }
@@ -826,9 +854,11 @@ Good luck! 🍀`;
    * Only allows users with the "Owner{Pin if problem.}" role to use this command
    */
   private async handleReactEmojiCommand(interaction: ChatInputCommandInteraction) {
+    console.log(`handleReactEmojiCommand called by ${interaction.user.tag}`);
     try {
       // First, check if the user has the required role
       if (!interaction.inGuild()) {
+        console.log('Command used outside of a guild');
         await interaction.reply({ 
           content: 'This command can only be used in a server.', 
           ephemeral: true 
@@ -836,15 +866,27 @@ Good luck! 🍀`;
         return;
       }
       
-      // Check if the user has the "Owner{Pin if problem.}" role
+      console.log('Checking user roles...');
+      // Check if the user has the "Owner{Pin if problem.}" role or is an Administrator
       const member = await interaction.guild!.members.fetch(interaction.user.id);
-      const hasRequiredRole = member.roles.cache.some(
+      
+      // Log all roles the user has
+      console.log(`User ${interaction.user.tag} has roles: ${member.roles.cache.map(r => r.name).join(', ')}`);
+      
+      // Check if user has the Owner role or has Administrator permissions
+      const isOwner = member.roles.cache.some(
         role => role.name === 'Owner{Pin if problem.}'
       );
       
-      if (!hasRequiredRole) {
+      const isAdmin = member.permissions.has('Administrator');
+      
+      const hasRequiredPermission = isOwner || isAdmin;
+      
+      console.log(`User permissions - Is Owner: ${isOwner}, Is Admin: ${isAdmin}, Has required permission: ${hasRequiredPermission}`);
+      
+      if (!hasRequiredPermission) {
         await interaction.reply({ 
-          content: 'You need the "Owner{Pin if problem.}" role to use this command.', 
+          content: 'You need the "Owner{Pin if problem.}" role or Administrator permissions to use this command.', 
           ephemeral: true 
         });
         return;
