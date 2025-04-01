@@ -1038,13 +1038,14 @@ Good luck! 🍀`;
   private async handleReactEmojiCommand(interaction: ChatInputCommandInteraction) {
     console.log(`handleReactEmojiCommand called by ${interaction.user.tag}`);
     try {
+      // Defer the reply immediately to prevent timeout
+      await interaction.deferReply();
+      console.log('Reply deferred to prevent timeout');
+      
       // First, check if the user has the required role
       if (!interaction.inGuild()) {
         console.log('Command used outside of a guild');
-        await interaction.reply({ 
-          content: 'This command can only be used in a server.', 
-          ephemeral: true 
-        });
+        await interaction.editReply('This command can only be used in a server.');
         return;
       }
       
@@ -1067,24 +1068,30 @@ Good luck! 🍀`;
       console.log(`User permissions - Is Owner: ${isOwner}, Is Admin: ${isAdmin}, Has required permission: ${hasRequiredPermission}`);
       
       if (!hasRequiredPermission) {
-        await interaction.reply({ 
-          content: 'You need the "Owner{Pin if problem.}" role or Administrator permissions to use this command.', 
-          ephemeral: true 
-        });
+        await interaction.editReply(
+          'You need the "Owner{Pin if problem.}" role or Administrator permissions to use this command.'
+        );
         return;
       }
-      
-      await interaction.deferReply();
       
       // Get the command options
       const cubeType = interaction.options.getString('cube_type', true);
       const emoji = interaction.options.getString('emoji', true);
       
-      // Very basic emoji validation (ensure at least one character and not too long)
+      // Enhanced emoji validation
+      console.log(`Validating emoji: "${emoji}" (length: ${emoji.length})`);
+      
+      // First check for empty or too long
       if (emoji.length === 0 || emoji.length > 10) {
+        console.log('Emoji validation failed: empty or too long');
         await interaction.editReply('Invalid emoji format. Please provide a single emoji character.');
         return;
       }
+      
+      // Simplified validation without regex
+      // We'll just allow any input that's not too long at this point
+      // Discord will validate it when we try to use it as a reaction later
+      console.log('Emoji validation passed, proceeding with emoji:', emoji);
       
       // Update the custom emoji map with the new emoji
       this.customEmojiMap[cubeType] = emoji;
