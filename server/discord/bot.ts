@@ -1,4 +1,4 @@
-import { Client, Events, GatewayIntentBits, TextChannel, ThreadChannel, SlashCommandBuilder, REST, Routes, ChatInputCommandInteraction, CommandInteraction, EmbedBuilder, ActivityType, Guild } from 'discord.js';
+import { Client, Events, GatewayIntentBits, TextChannel, ThreadChannel, SlashCommandBuilder, REST, Routes, ChatInputCommandInteraction, CommandInteraction, EmbedBuilder, ActivityType, Guild, ActionRowBuilder, ButtonBuilder, ButtonStyle, Message } from 'discord.js';
 import { BotConfig, ChallengeThread, InsertChallengeThread } from '@shared/schema';
 import { storage } from '../storage';
 import { scrambleManager } from './scrambleManager';
@@ -152,6 +152,8 @@ class DiscordBot {
         await this.handleHistoryCommand(interaction);
       } else if (interaction.commandName === 'react_emoji') {
         await this.handleReactEmojiCommand(interaction);
+      } else if (interaction.commandName === 'scramble') {
+        await this.handleScrambleCommand(interaction);
       }
     });
   }
@@ -265,12 +267,32 @@ class DiscordBot {
             .setRequired(true)
         );
       
+      console.log('5️⃣ Creating and registering scramble command...');
+      const scrambleCommand = new SlashCommandBuilder()
+        .setName('scramble')
+        .setDescription('Generate a random scramble for a cube type')
+        .addStringOption(option => 
+          option.setName('cube_type')
+            .setDescription('The type of cube to generate a scramble for')
+            .setRequired(true)
+            .addChoices(
+              { name: '2x2', value: '2x2' },
+              { name: '3x3', value: '3x3' },
+              { name: '3x3 BLD', value: '3x3 BLD' },
+              { name: '3x3 OH', value: '3x3 OH' },
+              { name: 'Pyraminx', value: 'Pyraminx' },
+              { name: 'Skewb', value: 'Skewb' },
+              { name: 'Clock', value: 'Clock' }
+            )
+        );
+        
       // Combine all commands
       const commands = [
         dailyCommand,
         botCommand,
         historyCommand,
-        reactEmojiCommand
+        reactEmojiCommand,
+        scrambleCommand
       ];
       
       // ONLY register to the specific guild to avoid global duplication
@@ -1189,6 +1211,346 @@ Good luck! 🍀`;
     }
   }
 
+  /**
+   * Handle the /scramble command to generate a random scramble for a cube type and track time
+   */
+  private async handleScrambleCommand(interaction: ChatInputCommandInteraction) {
+    try {
+      await interaction.deferReply();
+      
+      // Get the cube type from the options
+      const cubeType = interaction.options.getString('cube_type', true);
+      
+      // Generate a scramble for the selected cube type
+      const scrambleResult = scrambleManager.generateScrambleForType(cubeType);
+      
+      // Create a rich embed for the scramble
+      const scrambleEmbed = new EmbedBuilder()
+        .setTitle(`${this.getCubeTypeEmoji(cubeType)} Random ${cubeType} Scramble`)
+        .setColor(0x3498DB)
+        .setDescription(`Here's your random scramble for ${cubeType}:`)
+        .addFields(
+          { 
+            name: 'Scramble', 
+            value: `\`\`\`\n${scrambleResult.scramble}\n\`\`\``, 
+            inline: false 
+          },
+          {
+            name: 'How to use',
+            value: 'Apply this scramble to your cube and time your solve. Good luck! 🍀',
+            inline: false
+          }
+        )
+        .setFooter({ text: `Daily Scramble Bot • ${new Date().toLocaleString()}` });
+      
+      // Create buttons for time tracking
+      const row = new ActionRowBuilder<ButtonBuilder>()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId('timer_ready')
+            .setLabel('Start Timer')
+            .setStyle(ButtonStyle.Primary)
+            .setEmoji('⏱️'),
+          new ButtonBuilder()
+            .setCustomId('timer_cancel')
+            .setLabel('Cancel')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji('❌')
+        );
+      
+      // Send the embed with buttons
+      const response = await interaction.editReply({ 
+        embeds: [scrambleEmbed],
+        components: [row]
+      });
+      
+      // Create a collector for button interactions
+      const collector = response.createMessageComponentCollector({ 
+        filter: i => i.user.id === interaction.user.id,
+        time: 300000 // 5 minutes
+      });
+      
+      // Timer state
+      let timerActive = false;
+      let startTime = 0;
+      
+      // Handle button interactions
+      collector.on('collect', async i => {
+        try {
+          if (i.customId === 'timer_ready' && !timerActive) {
+            // Start timer
+            timerActive = true;
+            startTime = Date.now();
+            
+            // Update buttons to show stop option
+            const timerRow = new ActionRowBuilder<ButtonBuilder>()
+              .addComponents(
+                new ButtonBuilder()
+                  .setCustomId('timer_stop')
+                  .setLabel('Stop Timer')
+                  .setStyle(ButtonStyle.Danger)
+                  .setEmoji('⏹️'),
+                new ButtonBuilder()
+                  .setCustomId('timer_cancel')
+                  .setLabel('Cancel')
+                  .setStyle(ButtonStyle.Secondary)
+                  .setEmoji('❌')
+              );
+            
+            await i.update({ components: [timerRow] });
+          } 
+          else if (i.customId === 'timer_stop' && timerActive) {
+            // Stop timer and calculate elapsed time
+            const endTime = Date.now();
+            const elapsedTime = (endTime - startTime) / 1000; // Convert to seconds
+            timerActive = false;
+            
+            // Format time
+            const minutes = Math.floor(elapsedTime / 60);
+            const seconds = elapsedTime % 60;
+            const formattedTime = `${minutes > 0 ? `${minutes}m ` : ''}${seconds.toFixed(2)}s`;
+            
+            // Update embed with time result
+            const resultEmbed = new EmbedBuilder()
+              .setTitle(`${this.getCubeTypeEmoji(cubeType)} ${cubeType} Solve Complete!`)
+              .setColor(0x2ECC71)
+              .setDescription(`Congratulations on completing your solve!`)
+              .addFields(
+                { 
+                  name: 'Scramble Used', 
+                  value: `\`\`\`\n${scrambleResult.scramble}\n\`\`\``, 
+                  inline: false 
+                },
+                {
+                  name: '⏱️ Your Time',
+                  value: `**${formattedTime}**`,
+                  inline: true
+                },
+                {
+                  name: '🏆 Solve Rating',
+                  value: this.getSolveRating(elapsedTime),
+                  inline: true
+                }
+              )
+              .setFooter({ text: `Daily Scramble Bot • ${new Date().toLocaleString()}` });
+            
+            // New row with option to get another scramble
+            const newRow = new ActionRowBuilder<ButtonBuilder>()
+              .addComponents(
+                new ButtonBuilder()
+                  .setCustomId('new_scramble')
+                  .setLabel('New Scramble')
+                  .setStyle(ButtonStyle.Primary)
+                  .setEmoji('🔄')
+              );
+            
+            await i.update({ 
+              embeds: [resultEmbed],
+              components: [newRow]
+            });
+          }
+          else if (i.customId === 'new_scramble') {
+            // Generate a new scramble for the same cube type
+            const newScrambleResult = scrambleManager.generateScrambleForType(cubeType);
+            
+            // Create a new embed for the scramble
+            const newScrambleEmbed = new EmbedBuilder()
+              .setTitle(`${this.getCubeTypeEmoji(cubeType)} New ${cubeType} Scramble`)
+              .setColor(0x3498DB)
+              .setDescription(`Here's your new random scramble for ${cubeType}:`)
+              .addFields(
+                { 
+                  name: 'Scramble', 
+                  value: `\`\`\`\n${newScrambleResult.scramble}\n\`\`\``, 
+                  inline: false 
+                },
+                {
+                  name: 'How to use',
+                  value: 'Apply this scramble to your cube and time your solve. Good luck! 🍀',
+                  inline: false
+                }
+              )
+              .setFooter({ text: `Daily Scramble Bot • ${new Date().toLocaleString()}` });
+            
+            // Reset the timer buttons
+            const row = new ActionRowBuilder<ButtonBuilder>()
+              .addComponents(
+                new ButtonBuilder()
+                  .setCustomId('timer_ready')
+                  .setLabel('Start Timer')
+                  .setStyle(ButtonStyle.Primary)
+                  .setEmoji('⏱️'),
+                new ButtonBuilder()
+                  .setCustomId('timer_cancel')
+                  .setLabel('Cancel')
+                  .setStyle(ButtonStyle.Secondary)
+                  .setEmoji('❌')
+              );
+            
+            // End the old collector
+            collector.stop();
+            
+            // Send the new embed with buttons
+            const newResponse = await i.update({ 
+              embeds: [newScrambleEmbed],
+              components: [row]
+            });
+            
+            // Create a new collector for the new scramble
+            const newCollector = (i.message as Message).createMessageComponentCollector({ 
+              filter: j => j.user.id === interaction.user.id,
+              time: 300000 // 5 minutes
+            });
+            
+            // Set up the new collector with the same logic
+            newCollector.on('collect', async j => {
+              try {
+                if (j.customId === 'timer_ready' && !timerActive) {
+                  // Start timer
+                  timerActive = true;
+                  startTime = Date.now();
+                  
+                  // Update buttons to show stop option
+                  const timerRow = new ActionRowBuilder<ButtonBuilder>()
+                    .addComponents(
+                      new ButtonBuilder()
+                        .setCustomId('timer_stop')
+                        .setLabel('Stop Timer')
+                        .setStyle(ButtonStyle.Danger)
+                        .setEmoji('⏹️'),
+                      new ButtonBuilder()
+                        .setCustomId('timer_cancel')
+                        .setLabel('Cancel')
+                        .setStyle(ButtonStyle.Secondary)
+                        .setEmoji('❌')
+                    );
+                  
+                  await j.update({ components: [timerRow] });
+                } 
+                else if (j.customId === 'timer_stop' && timerActive) {
+                  // Handle the timer stop
+                  const endTime = Date.now();
+                  const elapsedTime = (endTime - startTime) / 1000; // Convert to seconds
+                  timerActive = false;
+                  
+                  // Format time
+                  const minutes = Math.floor(elapsedTime / 60);
+                  const seconds = elapsedTime % 60;
+                  const formattedTime = `${minutes > 0 ? `${minutes}m ` : ''}${seconds.toFixed(2)}s`;
+                  
+                  // Update embed with time result
+                  const resultEmbed = new EmbedBuilder()
+                    .setTitle(`${this.getCubeTypeEmoji(cubeType)} ${cubeType} Solve Complete!`)
+                    .setColor(0x2ECC71)
+                    .setDescription(`Congratulations on completing your solve!`)
+                    .addFields(
+                      { 
+                        name: 'Scramble Used', 
+                        value: `\`\`\`\n${newScrambleResult.scramble}\n\`\`\``, 
+                        inline: false 
+                      },
+                      {
+                        name: '⏱️ Your Time',
+                        value: `**${formattedTime}**`,
+                        inline: true
+                      },
+                      {
+                        name: '🏆 Solve Rating',
+                        value: this.getSolveRating(elapsedTime),
+                        inline: true
+                      }
+                    )
+                    .setFooter({ text: `Daily Scramble Bot • ${new Date().toLocaleString()}` });
+                  
+                  // New row with option to get another scramble
+                  const newRow = new ActionRowBuilder<ButtonBuilder>()
+                    .addComponents(
+                      new ButtonBuilder()
+                        .setCustomId('new_scramble')
+                        .setLabel('New Scramble')
+                        .setStyle(ButtonStyle.Primary)
+                        .setEmoji('🔄')
+                    );
+                  
+                  await j.update({ 
+                    embeds: [resultEmbed],
+                    components: [newRow]
+                  });
+                }
+                else if (j.customId === 'timer_cancel') {
+                  // Cancel timer
+                  timerActive = false;
+                  newCollector.stop();
+                  
+                  await j.update({ 
+                    components: [] 
+                  });
+                }
+              } catch (error) {
+                console.error('Error handling timer button interaction:', error);
+              }
+            });
+            
+            newCollector.on('end', async (collected, reason) => {
+              if (reason === 'time' && collected.size === 0) {
+                try {
+                  await (i.message as Message).edit({ components: [] });
+                } catch (error) {
+                  console.error('Error removing buttons after collector end:', error);
+                }
+              }
+            });
+          }
+          else if (i.customId === 'timer_cancel') {
+            // Cancel timer
+            timerActive = false;
+            collector.stop();
+            
+            await i.update({ 
+              components: [] 
+            });
+          }
+        } catch (error) {
+          console.error('Error handling timer button interaction:', error);
+        }
+      });
+      
+      collector.on('end', async (collected, reason) => {
+        if (reason === 'time' && collected.size === 0) {
+          try {
+            await interaction.editReply({ components: [] });
+          } catch (error) {
+            console.error('Error removing buttons after collector end:', error);
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error handling scramble command:', error);
+      try {
+        await interaction.editReply('An error occurred while generating the scramble. Please try again later.');
+      } catch (replyError) {
+        console.error('Error sending error reply:', replyError);
+      }
+    }
+  }
+  
+  /**
+   * Get a rating for a solve time (just for fun)
+   * @param time The solve time in seconds
+   * @returns A fun rating message based on the time
+   */
+  private getSolveRating(time: number): string {
+    // Different ratings based on the cube type could be implemented in the future
+    if (time < 10) return "🔥 Speedcubing Champion! 🔥";
+    if (time < 20) return "⚡ Lightning Fast! ⚡";
+    if (time < 30) return "🌟 Outstanding! 🌟";
+    if (time < 45) return "👏 Great Solve! 👏";
+    if (time < 60) return "👍 Solid Effort! 👍";
+    if (time < 90) return "🙂 Good Progress! 🙂";
+    if (time < 120) return "💪 Keep Practicing! 💪";
+    return "🎮 Cube Solver! 🎮";
+  }
+  
   /**
    * Handle the /react_emoji command to set custom emoji reactions for cube types
    * Only allows users with the "Owner{Pin if problem.}" role to use this command

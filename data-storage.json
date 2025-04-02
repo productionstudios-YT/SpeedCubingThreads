@@ -83,6 +83,34 @@
         "createdAt": "2025-04-02T11:34:32.242Z",
         "isDeleted": false
       }
+    ],
+    [
+      6,
+      {
+        "threadId": "1356957388258807878",
+        "channelId": "1295224323455582269",
+        "guildId": "1253928067198357575",
+        "cubeType": "3x3",
+        "scramble": "L2 F2 D' R' U L F2 R' B L2 U2 F2 R2 B' D' R' F2 U2 L2 B'",
+        "expiresAt": "2025-04-03T11:44:13.936Z",
+        "id": 6,
+        "createdAt": "2025-04-02T11:44:13.936Z",
+        "isDeleted": false
+      }
+    ],
+    [
+      7,
+      {
+        "threadId": "1356958296451580086",
+        "channelId": "1295224323455582269",
+        "guildId": "1253928067198357575",
+        "cubeType": "2x2",
+        "scramble": "F' U R F U2 R2 F2 U' R F U",
+        "expiresAt": "2025-04-03T11:47:50.385Z",
+        "id": 7,
+        "createdAt": "2025-04-02T11:47:50.385Z",
+        "isDeleted": false
+      }
     ]
   ],
   "users": [
@@ -110,6 +138,6 @@
     ]
   ],
   "botConfigCurrentId": 2,
-  "challengeThreadCurrentId": 6,
+  "challengeThreadCurrentId": 8,
   "userCurrentId": 3
 }
