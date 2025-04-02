@@ -132,10 +132,13 @@ function generate3x3Scramble(): string {
 /**
  * Generate a 2x2 cube scramble
  * Format: WCA regulation-compliant with 9-11 random moves (optimized for challenge)
+ * Note: 2x2 cubes are typically scrambled using only R, U, F moves as they are sufficient
+ * to reach all states and B, D, L moves are redundant since they can be achieved by
+ * rotating the cube and using R, U, F instead.
  */
 function generate2x2Scramble(): string {
-  // For 2x2, the standard WCA notation uses all 6 faces (R, L, U, D, F, B)
-  const moves = ['R', 'U', 'F', 'L', 'D', 'B'];
+  // For 2x2, we only use R, U, F moves which is the standard practice
+  const moves = ['R', 'U', 'F'];
   // Standard modifiers with balanced distribution
   const modifiers = ['', '\'', '2'];
   const scramble: string[] = [];
@@ -148,8 +151,7 @@ function generate2x2Scramble(): string {
   // For 2x2, prioritize certain move combinations that create more complex patterns
   // These are typical move combinations in 2x2 algorithms that create harder states
   const hardPatterns = [
-    ['R', 'U'], ['R', 'F'], ['U', 'F'], 
-    ['F', 'R'], ['U', 'R'], ['R', 'D']
+    ['R', 'U'], ['R', 'F'], ['U', 'F']
   ];
   
   for (let i = 0; i < moveCount; i++) {

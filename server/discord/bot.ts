@@ -907,62 +907,91 @@ class DiscordBot {
       }
       
       try {
-        console.log(`Attempting to fetch thread: ${thread.threadId}`);
-        // Get the thread from Discord with more detailed error handling
+        console.log(`Attempting to fetch thread: ${thread.threadId} in channel ${channel.name}`);
+        
+        // Get all threads in the channel (active and archived)
+        let foundThread = null;
+        
+        // First check active threads
         try {
-          // Fetch all threads in the channel first and log them
-          const allThreads = await channel.threads.fetchActive();
-          console.log(`Active threads in channel ${channel.id}: ${allThreads.threads.size}`);
+          const activeThreads = await channel.threads.fetchActive();
+          console.log(`Active threads in channel ${channel.name} (${channel.id}): ${activeThreads.threads.size}`);
           
-          // Try to get the specific thread
-          const discordThread = await channel.threads.fetch(thread.threadId);
-          console.log(`Successfully fetched thread ${thread.threadId}`);
+          activeThreads.threads.forEach(t => {
+            console.log(`- Active thread: ${t.id} (${t.name})`);
+          });
           
-          if (discordThread) {
-            // Send a final message to the thread before archiving
-            try {
-              await discordThread.send({
-                content: `🔒 This thread has been archived because it has expired. This is an automated action.`
-              });
-              console.log(`Sent final message to thread ${thread.threadId}`);
-            } catch (messageError) {
-              console.warn(`Could not send final message to thread: ${messageError}`);
-            }
-            
-            // Archive the thread instead of deleting it
-            try {
-              await discordThread.setArchived(true);
-              console.log(`Set thread ${thread.threadId} as archived`);
-            } catch (archiveError) {
-              console.warn(`Error setting thread as archived: ${archiveError}`);
-            }
-            
-            try {
-              await discordThread.setLocked(true);
-              console.log(`Set thread ${thread.threadId} as locked`);
-            } catch (lockError) {
-              console.warn(`Error setting thread as locked: ${lockError}`);
-            }
-            
-            console.log(`Successfully archived expired thread: ${thread.threadId}`);
-            return; // Exit if successful
+          foundThread = activeThreads.threads.get(thread.threadId);
+          if (foundThread) {
+            console.log(`Found thread ${thread.threadId} in active threads`);
           }
-        } catch (fetchError) {
-          console.warn(`Error fetching thread ${thread.threadId}: ${fetchError}`);
-          // Attempt to find the thread in archived threads
+        } catch (activeError) {
+          console.error(`Error fetching active threads: ${activeError}`);
+        }
+        
+        // If not found in active, check archived threads
+        if (!foundThread) {
           try {
             const archivedThreads = await channel.threads.fetchArchived();
-            console.log(`Archived threads in channel ${channel.id}: ${archivedThreads.threads.size}`);
+            console.log(`Archived threads in channel ${channel.name}: ${archivedThreads.threads.size}`);
             
-            const archivedThread = archivedThreads.threads.get(thread.threadId);
-            if (archivedThread) {
-              console.log(`Thread ${thread.threadId} is already archived`);
+            archivedThreads.threads.forEach(t => {
+              console.log(`- Archived thread: ${t.id} (${t.name})`);
+            });
+            
+            foundThread = archivedThreads.threads.get(thread.threadId);
+            if (foundThread) {
+              console.log(`Found thread ${thread.threadId} in archived threads`);
               // Thread is already archived, consider this a success
               return;
             }
-          } catch (archivedFetchError) {
-            console.warn(`Error fetching archived threads: ${archivedFetchError}`);
+          } catch (archivedError) {
+            console.error(`Error fetching archived threads: ${archivedError}`);
           }
+        }
+        
+        // If still not found, try fetching directly
+        if (!foundThread) {
+          try {
+            foundThread = await channel.threads.fetch(thread.threadId);
+            console.log(`Successfully fetched thread directly: ${thread.threadId}`);
+          } catch (directFetchError) {
+            console.warn(`Error directly fetching thread ${thread.threadId}: ${directFetchError}`);
+          }
+        }
+        
+        // Process the found thread
+        if (foundThread) {
+          // Send a final message to the thread before archiving
+          try {
+            await foundThread.send({
+              content: `🔒 This thread has been archived because it has expired. This is an automated action.`
+            });
+            console.log(`Sent final message to thread ${thread.threadId}`);
+          } catch (messageError) {
+            console.warn(`Could not send final message to thread: ${messageError}`);
+          }
+          
+          // First lock the thread to prevent further messages
+          try {
+            await foundThread.setLocked(true);
+            console.log(`Set thread ${thread.threadId} as locked`);
+          } catch (lockError) {
+            console.warn(`Error setting thread as locked: ${lockError}`);
+          }
+          
+          // Then archive the thread
+          try {
+            await foundThread.setArchived(true);
+            console.log(`Set thread ${thread.threadId} as archived`);
+          } catch (archiveError) {
+            console.warn(`Error setting thread as archived: ${archiveError}`);
+          }
+          
+          console.log(`Successfully archived expired thread: ${thread.threadId}`);
+          return; // Exit if successful
+        } else {
+          console.warn(`Thread ${thread.threadId} not found in active or archived threads`);
         }
       } catch (error: unknown) {
         // Thread might already be archived or inaccessible
