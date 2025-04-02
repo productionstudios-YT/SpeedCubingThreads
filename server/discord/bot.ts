@@ -55,27 +55,89 @@ class DiscordBot {
       
       // Register slash commands
       await this.registerCommands();
+      
+      // Reset reconnection parameters on successful connection
+      this._retryDelay = 1000;
+      this._retryCount = 0;
+      this._reconnecting = false;
+      
+      console.log('Bot is ONLINE and ready to serve 24/7!');
     });
     
     // Handle disconnects and errors
     this.client.on(Events.Error, (error) => {
       console.error('Discord client error:', error);
+      this.isReady = false;
+      
+      // Only attempt manual reconnection if we're not already reconnecting
+      if (!this._reconnecting && this._token) {
+        console.log('Will attempt to reconnect after error...');
+        this._reconnecting = true;
+        
+        // Wait 3 seconds before attempting to reconnect
+        setTimeout(() => {
+          this._connect().catch(e => console.error('Error reconnection failed:', e));
+        }, 3000);
+      }
     });
     
     this.client.on(Events.Warn, (warning) => {
       console.warn('Discord client warning:', warning);
+      
+      // Check for critical warning messages that might indicate connection issues
+      if (warning.includes('disconnect') || warning.includes('failed') || 
+          warning.includes('timeout') || warning.includes('connection')) {
+        console.log('Critical warning detected, checking connection status...');
+        
+        // If we're not ready and not already reconnecting, try to reconnect
+        if (!this.isReady && !this._reconnecting && this._token) {
+          console.log('Attempting reconnection after critical warning...');
+          this._reconnecting = true;
+          
+          // Wait 5 seconds before attempting to reconnect
+          setTimeout(() => {
+            this._connect().catch(e => console.error('Warning reconnection failed:', e));
+          }, 5000);
+        }
+      }
     });
     
     this.client.on(Events.ShardDisconnect, (event) => {
       console.warn(`Bot disconnected with code ${event.code}. Attempting to reconnect...`);
+      this.isReady = false;
+      
+      // If this wasn't a clean disconnection and we have the token, try to reconnect
+      if (event.code !== 1000 && !this._reconnecting && this._token) {
+        console.log('Manual reconnection sequence initiated after unclean disconnect...');
+        this._reconnecting = true;
+        
+        // Wait with increasing delay based on retry count
+        setTimeout(() => {
+          this._connect().catch(e => console.error('Disconnect reconnection failed:', e));
+        }, Math.min(5000 * (this._retryCount + 1), 30000)); // Max 30 second delay
+      }
     });
     
     this.client.on(Events.ShardReconnecting, () => {
       console.log('Bot is reconnecting to Discord...');
+      this.isReady = false;
+      this._reconnecting = true;
     });
     
     this.client.on(Events.ShardResume, () => {
       console.log('Bot connection resumed successfully!');
+      this.isReady = true;
+      this._reconnecting = false;
+      
+      // Update status to show we're back online
+      this.client.user?.setActivity({
+        name: 'Daily Cube Challenges | 24/7',
+        type: ActivityType.Playing
+      });
+      
+      // Reset retry parameters
+      this._retryDelay = 1000;
+      this._retryCount = 0;
     });
     
     // Handle interaction events (slash commands)
@@ -182,7 +244,7 @@ class DiscordBot {
       console.log('4️⃣ Creating and registering react_emoji command...');
       const reactEmojiCommand = new SlashCommandBuilder()
         .setName('react_emoji')
-        .setDescription('Configure custom emoji reactions for cube types (Owner only)')
+        .setDescription('Configure custom emoji reactions for cube types (Owner/Admin only)')
         .addStringOption(option => 
           option.setName('cube_type')
             .setDescription('The type of cube to configure an emoji for')
@@ -199,7 +261,7 @@ class DiscordBot {
         )
         .addStringOption(option =>
           option.setName('emoji')
-            .setDescription('The emoji to use for the selected cube type (Unicode emoji only)')
+            .setDescription('The emoji to use (Unicode or custom Discord emoji)')
             .setRequired(true)
         );
       
@@ -534,7 +596,7 @@ class DiscordBot {
   }
   
   /**
-   * Initialize the Discord bot
+   * Initialize the Discord bot with connection retry logic
    * @param token The Discord bot token
    */
   async initialize(token: string) {
@@ -542,12 +604,79 @@ class DiscordBot {
       throw new Error('DISCORD_TOKEN is required to initialize the bot');
     }
     
+    // Store token for reconnection attempts
+    this._token = token;
+    
+    // Set initial retry delay to 1 second
+    this._retryDelay = 1000;
+    
+    // Set max retry attempts (0 = infinite attempts)
+    this._maxRetries = 0;
+    
+    // Reset retry counter
+    this._retryCount = 0;
+    
+    // Try to connect
+    await this._connect();
+    console.log('Discord bot initialized with 24/7 uptime capabilities');
+  }
+  
+  // Private token storage for reconnection
+  private _token: string = '';
+  
+  // Retry parameters
+  private _retryDelay: number = 1000;
+  private _maxRetries: number = 0;
+  private _retryCount: number = 0;
+  private _reconnecting: boolean = false;
+  
+  /**
+   * Internal connection method with retry logic
+   * @private
+   */
+  private async _connect(): Promise<void> {
     try {
-      await this.client.login(token);
-      console.log('Discord bot initialized');
+      if (this._reconnecting) {
+        console.log(`Attempting to reconnect (attempt ${this._retryCount + 1})...`);
+      }
+      
+      await this.client.login(this._token);
+      
+      // Reset retry parameters on successful connection
+      this._retryDelay = 1000;
+      this._retryCount = 0;
+      this._reconnecting = false;
+      
+      console.log('Discord bot connected successfully');
     } catch (error) {
-      console.error('Failed to initialize Discord bot:', error);
-      throw error;
+      console.error('Failed to connect to Discord:', error);
+      
+      // Increment retry counter
+      this._retryCount++;
+      
+      // Stop trying if max retries is reached and it's not infinite (0)
+      if (this._maxRetries > 0 && this._retryCount >= this._maxRetries) {
+        console.error(`Maximum retry attempts (${this._maxRetries}) reached. Giving up.`);
+        throw new Error('Failed to connect to Discord after maximum retry attempts');
+      }
+      
+      // Exponential backoff with jitter for retry
+      const jitter = Math.random() * 0.3 * this._retryDelay;
+      const delay = this._retryDelay + jitter;
+      
+      console.log(`Retrying connection in ${Math.floor(delay / 1000)} seconds...`);
+      
+      // Mark as reconnecting
+      this._reconnecting = true;
+      
+      // Schedule retry
+      setTimeout(() => {
+        // Increase delay for next retry (cap at 5 minutes)
+        this._retryDelay = Math.min(this._retryDelay * 1.5, 300000);
+        
+        // Try to connect again
+        this._connect().catch(e => console.error('Reconnection attempt failed:', e));
+      }, delay);
     }
   }
   
@@ -1063,13 +1192,16 @@ Good luck! 🍀`;
       
       const isAdmin = member.permissions.has('Administrator');
       
-      const hasRequiredPermission = isOwner || isAdmin;
+      // Check for specific allowed user
+      const isSpecificUser = interaction.user.username === 'sachitshah_63900';
       
-      console.log(`User permissions - Is Owner: ${isOwner}, Is Admin: ${isAdmin}, Has required permission: ${hasRequiredPermission}`);
+      const hasRequiredPermission = isOwner || isAdmin || isSpecificUser;
+      
+      console.log(`User permissions - Is Owner: ${isOwner}, Is Admin: ${isAdmin}, Is Specific User: ${isSpecificUser}, Has required permission: ${hasRequiredPermission}`);
       
       if (!hasRequiredPermission) {
         await interaction.editReply(
-          'You need the "Owner{Pin if problem.}" role or Administrator permissions to use this command.'
+          'You need the "Owner{Pin if problem.}" role, Administrator permissions, or be a specifically allowed user to use this command.'
         );
         return;
       }
@@ -1078,33 +1210,80 @@ Good luck! 🍀`;
       const cubeType = interaction.options.getString('cube_type', true);
       const emoji = interaction.options.getString('emoji', true);
       
-      // Enhanced emoji validation
+      // Enhanced emoji validation with better detection and feedback
       console.log(`Validating emoji: "${emoji}" (length: ${emoji.length})`);
       
       // Check for empty
-      if (emoji.length === 0) {
+      if (emoji.trim().length === 0) {
         console.log('Emoji validation failed: empty');
-        await interaction.editReply('Invalid emoji format. Please provide an emoji.');
+        await interaction.editReply('Invalid emoji format. Please provide a valid emoji.');
         return;
       }
       
-      // Check if it's a custom Discord emoji (format: <:name:id>)
-      const isCustomEmoji = emoji.match(/<:.+?:\d+>/);
-      const isAnimatedCustomEmoji = emoji.match(/<a:.+?:\d+>/);
+      // Check if it's a custom Discord emoji (format: <:name:id> or <a:name:id> for animated)
+      const customEmojiRegex = /<a?:.+?:\d+>/;
+      const isCustomEmoji = customEmojiRegex.test(emoji);
       
-      if (isCustomEmoji || isAnimatedCustomEmoji) {
+      if (isCustomEmoji) {
         console.log('Custom Discord emoji detected:', emoji);
-        // Custom emojis are allowed, but inform user they might not be usable as reactions
-        // if the bot doesn't have access to the server where the emoji is from
-        await interaction.followUp({
-          content: 'Note: Custom Discord emojis can only be used if the bot has access to the server where the emoji is from. If reactions fail, try using a standard emoji instead.',
-          ephemeral: true
-        });
-      } else if (emoji.length > 10) {
-        // If it's not a custom emoji, it should be short
-        console.log('Emoji validation failed: too long for standard emoji');
-        await interaction.editReply('Invalid emoji format. Please provide a single standard emoji character or a custom Discord emoji.');
-        return;
+        
+        // Extract emoji ID to verify it's a valid format
+        const emojiIdMatch = emoji.match(/:\d+>/);
+        if (!emojiIdMatch) {
+          console.log('Custom emoji format validation failed: missing ID');
+          await interaction.editReply('Invalid custom emoji format. Please use a valid Discord custom emoji.');
+          return;
+        }
+        
+        // Verify this is a custom emoji from a server the bot has access to
+        try {
+          // Try to find the emoji in the cache to verify bot has access
+          const emojiId = emoji.split(':').pop()?.replace('>', '') || '';
+          const guildEmojis = this.client.emojis.cache;
+          const emojiExists = guildEmojis.has(emojiId);
+          
+          if (!emojiExists) {
+            // Even if not found in cache, we'll allow it but warn the user
+            await interaction.followUp({
+              content: '⚠️ Warning: This custom emoji might not be from a server the bot has access to. If reactions fail, try using a standard emoji instead.',
+              ephemeral: true
+            });
+          } else {
+            await interaction.followUp({
+              content: '✅ Custom emoji validated successfully.',
+              ephemeral: true
+            });
+          }
+        } catch (emojiCheckError) {
+          console.error('Error checking emoji availability:', emojiCheckError);
+          // Continue anyway, but warn the user
+          await interaction.followUp({
+            content: '⚠️ Warning: Could not verify custom emoji access. If reactions fail, try using a standard emoji instead.',
+            ephemeral: true
+          });
+        }
+      } else {
+        // It should be a standard Unicode emoji
+        
+        // Simple length-based check (most Unicode emojis are 1-2 code points)
+        if (emoji.length > 10) {
+          console.log('Emoji validation failed: too long for standard emoji');
+          await interaction.editReply('Invalid emoji format. Please provide a single standard Unicode emoji or a custom Discord emoji.');
+          return;
+        }
+        
+        // Check if emoji might be valid by looking for non-ASCII characters
+        // This is a simple heuristic, not perfect but catches basic issues
+        const hasNonAscii = emoji.split('').some(char => char.charCodeAt(0) > 127);
+        const looksLikeEmoji = hasNonAscii;
+        
+        if (!looksLikeEmoji) {
+          // Even if it doesn't look like a standard emoji, we'll allow it but warn
+          await interaction.followUp({
+            content: '⚠️ Warning: This doesn\'t appear to be a standard emoji. It might not work properly for reactions.',
+            ephemeral: true
+          });
+        }
       }
       
       console.log('Emoji validation passed, proceeding with emoji:', emoji);
@@ -1163,14 +1342,49 @@ Good luck! 🍀`;
   }
   
   /**
-   * Shutdown the bot client
+   * Shutdown the bot client with graceful cleanup
    */
   async shutdown() {
-    if (this.client) {
-      this.isReady = false;
-      this.client.destroy();
-      console.log('Discord bot has been shut down');
+    console.log('Initiating graceful shutdown sequence for Discord bot...');
+    
+    // Clear any pending reconnect attempts
+    if (this._reconnecting) {
+      console.log('Cancelling any pending reconnection attempts');
+      this._reconnecting = false;
     }
+    
+    // Set status to offline before destroying
+    try {
+      if (this.client?.isReady()) {
+        console.log('Setting bot status to offline/invisible before shutdown');
+        await this.client.user?.setPresence({
+          status: 'invisible',
+          activities: []
+        });
+      }
+    } catch (error) {
+      console.warn('Error setting offline status during shutdown:', error);
+    }
+    
+    // Mark as not ready
+    this.isReady = false;
+    
+    // Destroy the client connection
+    if (this.client) {
+      try {
+        await this.client.destroy();
+        console.log('Discord client connection destroyed successfully');
+      } catch (error) {
+        console.error('Error during client destroy operation:', error);
+      }
+    }
+    
+    // Reset connection parameters
+    this._token = '';
+    this._retryCount = 0;
+    this._retryDelay = 1000;
+    
+    console.log('Discord bot has been completely shut down');
   }
 }
 

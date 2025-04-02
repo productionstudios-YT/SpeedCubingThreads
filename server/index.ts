@@ -138,19 +138,74 @@ async function initializeServices() {
     });
   });
   
-  // Handle graceful shutdown
-  const shutdown = async () => {
-    log("Shutting down server...");
+  // Handle graceful shutdown with enhanced error handling and process monitoring
+  const shutdown = async (signal: string) => {
+    log(`Shutting down server due to ${signal} signal...`);
     
-    // Stop all scheduled jobs
-    scheduler.stopAllJobs();
-    
-    // Shutdown the Discord bot
-    await discordBot.shutdown();
-    
-    process.exit(0);
+    try {
+      // Notify server is shutting down
+      console.log('================================================================');
+      console.log(`🛑 SHUTDOWN SEQUENCE INITIATED - Signal: ${signal}`);
+      console.log('================================================================');
+      
+      // Stop all scheduled jobs with timeout
+      console.log('1️⃣ Stopping all scheduled jobs...');
+      const schedulerPromise = Promise.race([
+        scheduler.stopAllJobs(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Scheduler shutdown timeout')), 5000))
+      ]).catch(err => console.warn('Warning: Scheduler shutdown incomplete:', err));
+      
+      await schedulerPromise;
+      console.log('✅ Scheduler shutdown complete');
+      
+      // Shutdown the Discord bot with timeout
+      console.log('2️⃣ Shutting down Discord bot...');
+      const botPromise = Promise.race([
+        discordBot.shutdown(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Discord bot shutdown timeout')), 10000))
+      ]).catch(err => console.warn('Warning: Discord bot shutdown incomplete:', err));
+      
+      await botPromise;
+      console.log('✅ Discord bot shutdown complete');
+      
+      // Wait for any pending operations
+      console.log('3️⃣ Waiting for any pending operations to complete...');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      console.log('================================================================');
+      console.log('✅ SHUTDOWN COMPLETE - System is ready to terminate');
+      console.log('================================================================');
+    } catch (error) {
+      console.error('❌ Error during shutdown:', error);
+    } finally {
+      // Force exit after 15 seconds if clean shutdown fails
+      const forceExitTimeout = setTimeout(() => {
+        console.error('⛔ Force exiting after timeout - Some resources may not have been cleaned up properly');
+        process.exit(1);
+      }, 15000);
+      
+      // Clear the timeout if we exit normally
+      forceExitTimeout.unref();
+      
+      // Exit with success code
+      process.exit(0);
+    }
   };
   
-  process.on('SIGINT', shutdown);
-  process.on('SIGTERM', shutdown);
+  // Register signal handlers for different termination scenarios
+  process.on('SIGINT', () => shutdown('SIGINT'));   // Ctrl+C
+  process.on('SIGTERM', () => shutdown('SIGTERM')); // Kill command
+  process.on('SIGHUP', () => shutdown('SIGHUP'));   // Terminal closed
+  
+  // Handle uncaught exceptions
+  process.on('uncaughtException', (error) => {
+    console.error('⚠️ UNCAUGHT EXCEPTION:', error);
+    // Don't exit for uncaught exceptions - let the bot try to recover
+  });
+  
+  // Handle unhandled promise rejections
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('⚠️ UNHANDLED REJECTION at:', promise, 'reason:', reason);
+    // Don't exit for unhandled rejections - let the bot try to recover
+  });
 })();
