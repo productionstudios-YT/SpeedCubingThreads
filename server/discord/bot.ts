@@ -965,7 +965,7 @@ class DiscordBot {
           // Send a final message to the thread before archiving
           try {
             await foundThread.send({
-              content: `🔒 This thread has been archived because it has expired. This is an automated action.`
+              content: `🔒 This thread was closed.`
             });
             console.log(`Sent final message to thread ${thread.threadId}`);
           } catch (messageError) {

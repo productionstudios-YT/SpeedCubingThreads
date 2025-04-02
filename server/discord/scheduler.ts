@@ -35,7 +35,6 @@ export class Scheduler {
         for (const thread of allThreads) {
           try {
             await discordBot.archiveThread(thread);
-            await storage.markThreadAsDeleted(thread.id);
             console.log(`Successfully archived thread ${thread.id} before manual post`);
           } catch (threadError) {
             console.error(`Error archiving thread ${thread.id}:`, threadError);
@@ -90,19 +89,14 @@ export class Scheduler {
         try {
           console.log(`Processing thread ${thread.id} (${thread.threadId}) for archiving`);
           
-          // First attempt to archive the thread through Discord
+          // Archive the thread through Discord but don't mark as deleted
           try {
             await discordBot.archiveThread(thread);
+            cleanedCount++;
             console.log(`Discord archival successful for thread ${thread.id}`);
           } catch (discordError) {
             console.error(`Discord API error on thread ${thread.id}:`, discordError);
-            // Even if Discord API fails, continue to mark as deleted in our database
           }
-          
-          // Always mark the thread as deleted in our database
-          await storage.markThreadAsDeleted(thread.id);
-          cleanedCount++;
-          console.log(`Thread ${thread.id} marked as deleted in database`);
         } catch (error) {
           console.error(`Critical error processing thread ${thread.id}:`, error);
           // Continue with other threads even if one fails
@@ -139,18 +133,13 @@ export class Scheduler {
             try {
               console.log(`Daily cleanup: Processing thread ${thread.id} (${thread.threadId})`);
               
-              // First attempt to archive the thread through Discord
+              // Archive the thread through Discord but don't mark as deleted in database
               try {
                 await discordBot.archiveThread(thread);
                 console.log(`Daily cleanup: Discord archival successful for thread ${thread.id}`);
               } catch (discordError) {
                 console.error(`Daily cleanup: Discord API error on thread ${thread.id}:`, discordError);
-                // Even if Discord API fails, continue to mark as deleted in our database
               }
-              
-              // Always mark the thread as deleted in our database
-              await storage.markThreadAsDeleted(thread.id);
-              console.log(`Daily cleanup: Thread ${thread.id} marked as deleted in database`);
             } catch (threadError) {
               console.error(`Daily cleanup: Critical error processing thread ${thread.id}:`, threadError);
               // Continue with other threads even if one fails
@@ -199,18 +188,13 @@ export class Scheduler {
             try {
               console.log(`Hourly cleanup: Processing thread ${thread.id} (${thread.threadId})`);
               
-              // First attempt to archive the thread through Discord
+              // Archive the thread through Discord but don't mark as deleted in database
               try {
                 await discordBot.archiveThread(thread);
                 console.log(`Hourly cleanup: Discord archival successful for thread ${thread.id}`);
               } catch (discordError) {
                 console.error(`Hourly cleanup: Discord API error on thread ${thread.id}:`, discordError);
-                // Even if Discord API fails, continue to mark as deleted in our database
               }
-              
-              // Always mark the thread as deleted in our database
-              await storage.markThreadAsDeleted(thread.id);
-              console.log(`Hourly cleanup: Thread ${thread.id} marked as deleted in database`);
             } catch (threadError) {
               console.error(`Hourly cleanup: Critical error processing thread ${thread.id}:`, threadError);
               // Continue with other threads even if one fails
