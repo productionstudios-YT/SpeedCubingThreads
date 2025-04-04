@@ -177,5 +177,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Register the API router
   app.use("/api", apiRouter);
   
+  // Add a simple keep-alive endpoint for external ping services
+  app.get('/keep-alive', (_req, res) => {
+    console.log('Keep-alive ping received at', new Date().toISOString());
+    res.send('Bot is alive!');
+  });
+  
   return httpServer;
 }

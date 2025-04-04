@@ -7,6 +7,7 @@ import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import cookieParser from "cookie-parser";
 import cors from "cors";
+import "./keep-alive"; // Import keep-alive service
 
 const app = express();
 
