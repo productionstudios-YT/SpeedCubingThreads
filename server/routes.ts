@@ -250,6 +250,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
           securityIssues.push('Discord bot is offline');
         }
         
+        // Check scheduler status
+        if (!scheduler.isRunning()) {
+          console.log('🔴 SECURITY: Scheduler not running');
+          securityIssues.push('Scheduler not running');
+        } else {
+          console.log('✅ SECURITY: Scheduler is running');
+        }
+        
+        // Check keep-alive status
+        if (!keepAliveActive) {
+          console.log('🔴 SECURITY: Keep-alive service not active');
+          securityIssues.push('Keep-alive service not active');
+        } else {
+          console.log('✅ SECURITY: Keep-alive service is active');
+        }
+        
         // Check for storage integrity
         try {
           // Check if we can access configs

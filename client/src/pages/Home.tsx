@@ -162,6 +162,7 @@ export default function Home() {
   const [isTriggeringDailyPost, setIsTriggeringDailyPost] = useState(false);
   const [isCleaningThreads, setIsCleaningThreads] = useState(false);
   const [isEmergencyBackup, setIsEmergencyBackup] = useState(false);
+  const [isSecurityCheck, setIsSecurityCheck] = useState(false);
   const [moderatorRoles, setModeratorRoles] = useState<string[]>([]);
   
   // Predefined roles for emergency notifications
@@ -295,6 +296,31 @@ export default function Home() {
     }
   });
   
+  // Mutation for security check (silent, no notifications)
+  const securityCheckMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/security-check", {});
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Security Check Complete",
+        description: data.securityIssues === 'No issues found' 
+          ? 'No security issues found. System secure.' 
+          : `Found security issues: ${data.securityIssues}`,
+      });
+      setIsSecurityCheck(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Security Check Failed",
+        description: `Failed to perform security check: ${error.message}`,
+        variant: "destructive",
+      });
+      setIsSecurityCheck(false);
+    }
+  });
+  
   // Mutation for emergency backup procedure
   const emergencyBackupMutation = useMutation({
     mutationFn: async () => {
@@ -306,18 +332,16 @@ export default function Home() {
     onSuccess: (data) => {
       toast({
         title: "Emergency Backup Initiated",
-        description: `Successfully created backup: ${data.backupFile}. Application will restart in 5 seconds.`,
+        description: `Successfully created backup: ${data.backupFile}. Application will restart immediately.`,
       });
       setIsEmergencyBackup(false);
       
       // Show a system-level notification as well for critical action
-      setTimeout(() => {
-        toast({
-          title: "SYSTEM IS RESTARTING",
-          description: "The system will be unavailable for a few seconds while restarting...",
-          variant: "destructive",
-        });
-      }, 3000);
+      toast({
+        title: "SYSTEM IS RESTARTING",
+        description: "The system will be unavailable for a few seconds while restarting...",
+        variant: "destructive",
+      });
     },
     onError: (error) => {
       toast({
@@ -351,6 +375,14 @@ export default function Home() {
     
     setIsCleaningThreads(true);
     cleanupThreadsMutation.mutate();
+  };
+  
+  // Function to perform security check
+  const performSecurityCheck = () => {
+    if (isSecurityCheck) return;
+    
+    setIsSecurityCheck(true);
+    securityCheckMutation.mutate();
   };
   
   // Function to trigger emergency backup
@@ -652,6 +684,29 @@ Please enter the role IDs to ping, comma separated (or leave empty to enter cust
                           <div className="w-full border-t border-[#202225] my-2"></div>
                           
                           <div className="mt-2">
+                            <h3 className="text-white font-semibold text-sm mb-2">Security Controls</h3>
+                            
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              <Button 
+                                className="bg-amber-500 hover:bg-amber-600 text-white text-xs px-2 py-1 rounded"
+                                onClick={() => performSecurityCheck()}
+                                disabled={isSecurityCheck}
+                              >
+                                {isSecurityCheck ? (
+                                  <>
+                                    <i className="fas fa-spinner fa-spin mr-1"></i> Security Check In Progress...
+                                  </>
+                                ) : (
+                                  <>
+                                    <i className="fas fa-shield-alt mr-1"></i> Perform Security Check
+                                  </>
+                                )}
+                              </Button>
+                              <p className="text-[#A3A6AA] text-xs w-full mt-1">
+                                Runs security checks silently without sending notifications or restarting the application.
+                              </p>
+                            </div>
+                            
                             <h3 className="text-white font-semibold text-sm mb-2">Emergency Controls</h3>
                             <Button 
                               className="bg-red-600 hover:bg-red-700 text-white text-xs px-2 py-1 rounded"
