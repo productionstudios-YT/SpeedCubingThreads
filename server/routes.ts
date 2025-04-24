@@ -7,6 +7,7 @@ import { TextChannel } from 'discord.js';
 import { storage } from "./storage";
 import { discordBot } from "./discord/bot";
 import { scheduler } from "./discord/scheduler";
+import { keepAliveActive } from "./keep-alive";
 import { insertBotConfigSchema, User } from "@shared/schema";
 import { z } from "zod";
 import { requireAuth } from "./auth";
@@ -226,7 +227,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Security check endpoint (silent, no notifications)
+  // Security check endpoint (with Discord notification but no restart)
   apiRouter.post("/security-check", requireAuth, async (req, res) => {
     try {
       console.log('🔍 SECURITY: Security check initiated');
@@ -279,6 +280,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
           // Check if we can access users
           const users = await storage.getAllUsers();
           console.log(`📊 SECURITY: Storage check - Found ${users.length} users`);
+          
+          // Send notification to Discord channels
+          if (discordBot.isClientReady()) {
+            // Get the name of the user who triggered the security check
+            const triggeredBy = req.user?.username || "an administrator";
+            
+            // Create notification message
+            const notificationMessage = `
+## 🔒 SECURITY CHECK REPORT
+
+**Performed by:** ${triggeredBy}
+**System Status:** ${securityIssues.length > 0 ? '⚠️ Issues detected' : '✅ All systems operational'}
+${securityIssues.length > 0 ? `\n**Issues Found:**\n${securityIssues.map(issue => `- ${issue}`).join('\n')}` : ''}
+
+**System Size:** ${formatBytes(dirSize)}
+**Configs:** ${configs.length} bot configurations
+**Active Threads:** ${threads.length} challenge threads
+**Database:** ${securityIssues.includes('Storage access error') ? '❌ Error' : '✅ Accessible'}
+**Bot Status:** ${botStatus === 'online' ? '✅ Online' : '❌ Offline'}
+**Scheduler:** ${scheduler.isRunning() ? '✅ Running' : '❌ Not running'}
+**Keep-alive:** ${keepAliveActive ? '✅ Active' : '❌ Inactive'}
+`;
+            
+            // Send to each configured Discord server
+            for (const config of configs) {
+              try {
+                const sent = await discordBot.sendEmergencyNotification(
+                  config.guildId,
+                  config.channelId,
+                  notificationMessage
+                );
+                
+                if (sent) {
+                  console.log(`✅ SECURITY: Notification sent to channel in guild ${config.guildId}`);
+                } else {
+                  console.error(`Failed to send notification to guild ${config.guildId}`);
+                  securityIssues.push(`Failed to notify guild ${config.guildId}`);
+                }
+              } catch (notifyError) {
+                console.error(`Error notifying guild ${config.guildId}:`, notifyError);
+              }
+            }
+          } else {
+            console.log('Cannot send Discord notification: Bot not ready');
+          }
+          
         } catch (storageError) {
           console.error('Error checking storage:', storageError);
           securityIssues.push('Storage access error');
@@ -293,7 +340,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(200).json({
         success: true,
         message: 'Security check completed',
-        timestamp: new Date().toISOString(),
         securityIssues: securityIssues.length > 0 ? securityIssues : 'No issues found',
         size: formatBytes(await getDirSize('.'))
       });

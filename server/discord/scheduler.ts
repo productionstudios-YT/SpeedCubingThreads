@@ -324,6 +324,14 @@ export class Scheduler {
   }
   
   /**
+   * Check if the scheduler has any active jobs
+   * @returns true if scheduler has active jobs, false otherwise
+   */
+  isRunning(): boolean {
+    return this.cronJobs.size > 0;
+  }
+  
+  /**
    * Stop all scheduled jobs
    */
   stopAllJobs() {
