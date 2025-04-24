@@ -710,6 +710,50 @@ class DiscordBot {
   }
   
   /**
+   * Get a guild by ID (for administrative functions)
+   * @param guildId The Discord guild ID
+   */
+  async getGuild(guildId: string) {
+    return await this.client.guilds.fetch(guildId);
+  }
+  
+  /**
+   * Fetch a channel by guild ID and channel ID (for administrative functions)
+   * @param guildId The Discord guild ID
+   * @param channelId The Discord channel ID
+   */
+  async getChannel(guildId: string, channelId: string): Promise<TextChannel | null> {
+    try {
+      const guild = await this.getGuild(guildId);
+      const channel = await guild.channels.fetch(channelId) as TextChannel;
+      return channel;
+    } catch (error) {
+      console.error(`Error fetching channel ${channelId} in guild ${guildId}:`, error);
+      return null;
+    }
+  }
+  
+  /**
+   * Send an emergency notification to a channel
+   * @param guildId The Discord guild ID
+   * @param channelId The Discord channel ID 
+   * @param content The message content
+   */
+  async sendEmergencyNotification(guildId: string, channelId: string, content: string): Promise<boolean> {
+    try {
+      const channel = await this.getChannel(guildId, channelId);
+      if (channel) {
+        await channel.send({ content });
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error(`Error sending emergency notification to ${channelId} in guild ${guildId}:`, error);
+      return false;
+    }
+  }
+  
+  /**
    * Check if today is April 1st (April Fools Day)
    * @returns boolean indicating if today is April Fools Day
    */

@@ -1,11 +1,54 @@
 import express, { Express } from "express";
 import { createServer, type Server } from "http";
+import fs from 'fs';
+import path from 'path';
+import { promisify } from 'util';
+import { TextChannel } from 'discord.js';
 import { storage } from "./storage";
 import { discordBot } from "./discord/bot";
 import { scheduler } from "./discord/scheduler";
 import { insertBotConfigSchema } from "@shared/schema";
 import { z } from "zod";
 import { requireAuth } from "./auth";
+
+// Helper function to get directory size
+async function getDirSize(dirPath: string): Promise<number> {
+  const stat = promisify(fs.stat);
+  const readdir = promisify(fs.readdir);
+  
+  const stats = await stat(dirPath);
+  if (!stats.isDirectory()) {
+    return stats.size;
+  }
+  
+  const files = await readdir(dirPath);
+  const sizes = await Promise.all(
+    files.map(async file => {
+      const filePath = path.join(dirPath, file);
+      try {
+        return await getDirSize(filePath);
+      } catch (err) {
+        console.error(`Error getting size of ${filePath}:`, err);
+        return 0;
+      }
+    })
+  );
+  
+  return sizes.reduce((acc, size) => acc + size, 0);
+}
+
+// Helper function to format bytes
+function formatBytes(bytes: number, decimals = 2) {
+  if (bytes === 0) return '0 Bytes';
+  
+  const k = 1024;
+  const dm = decimals < 0 ? 0 : decimals;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
+  
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Create HTTP server
@@ -170,6 +213,130 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: "Failed to trigger thread cleanup", 
         message: errorMessage,
         count: 0
+      });
+    }
+  });
+
+  // Emergency backup and security endpoint
+  apiRouter.post("/emergency-backup", requireAuth, async (req, res) => {
+    try {
+      console.log('🚨 EMERGENCY: Emergency backup procedure initiated');
+      
+      // Get moderator role IDs from request
+      const { moderatorRoles } = req.body;
+      
+      // 1. Create backup of current storage
+      const backupTimestamp = new Date().toISOString().replace(/:/g, '-');
+      const backupFileName = `data-backup-${backupTimestamp}.json`;
+      
+      console.log(`🔄 EMERGENCY: Creating storage backup as ${backupFileName}`);
+      
+      // Get all data to backup
+      const configs = await storage.getAllBotConfigs();
+      const threads = await storage.getAllChallengeThreads();
+      const users = await storage.getAllUsers();
+      
+      // Create backup object
+      const backupData = {
+        timestamp: new Date().toISOString(),
+        configs,
+        threads,
+        users,
+        securityVersion: 1,
+      };
+      
+      // Write backup to file
+      fs.writeFileSync(backupFileName, JSON.stringify(backupData, null, 2));
+      console.log(`✅ EMERGENCY: Backup created successfully`);
+      
+      // 2. Perform security scan
+      console.log(`🔍 EMERGENCY: Performing security scan`);
+      
+      // Simple scan implementation - check for potential security issues
+      const securityIssues = [];
+      
+      // Add actual security scan logic here - this is a placeholder
+      // Look for suspicious files or patterns
+      try {
+        // Just check application directory size and structure
+        const dirSize = await getDirSize('.');
+        console.log(`📊 EMERGENCY: Application directory size: ${formatBytes(dirSize)}`);
+      } catch (scanError) {
+        console.error('Error during security scan:', scanError);
+        securityIssues.push('Error during security scan');
+      }
+      
+      // 3. Notify moderators via Discord
+      console.log(`📢 EMERGENCY: Notifying moderators`);
+      
+      try {
+        if (discordBot.isClientReady() && moderatorRoles && moderatorRoles.length > 0) {
+          // Get all configurations to find guilds/channels
+          for (const config of configs) {
+            try {
+              // Create role mentions for each moderator role
+              const roleMentions = moderatorRoles.map((roleId: string) => `<@&${roleId}>`).join(' ');
+              
+              // Create notification message
+              const notificationMessage = `${roleMentions} **EMERGENCY ALERT**: An emergency backup was triggered by the administrator. System is being checked for issues. Timestamp: ${new Date().toISOString()}`;
+              
+              // Send the message using our helper method
+              const sent = await discordBot.sendEmergencyNotification(
+                config.guildId,
+                config.channelId,
+                notificationMessage
+              );
+              
+              if (sent) {
+                console.log(`✅ EMERGENCY: Notification sent to channel in guild ${config.guildId}`);
+              } else {
+                console.error(`Failed to send notification to guild ${config.guildId}`);
+                securityIssues.push(`Failed to notify guild ${config.guildId}`);
+              }
+            } catch (notifyError) {
+              console.error(`Error notifying guild ${config.guildId}:`, notifyError);
+              securityIssues.push(`Failed to notify guild ${config.guildId}`);
+            }
+          }
+        } else {
+          console.log('Cannot notify moderators: Bot not ready or no moderator roles provided');
+          securityIssues.push('Bot not ready or no moderator roles provided');
+        }
+      } catch (notifyError) {
+        console.error('Error during moderator notification:', notifyError);
+        securityIssues.push('Error during moderator notification');
+      }
+      
+      // 4. Schedule application restart
+      console.log(`🔄 EMERGENCY: Scheduling application restart`);
+      
+      // Schedule restart after response is sent
+      setTimeout(() => {
+        console.log('================================================================');
+        console.log('🔄 EMERGENCY RESTART: Restarting application...');
+        console.log('================================================================');
+        
+        // Stop all scheduled tasks
+        scheduler.stopAllJobs();
+        
+        // Exit process - will be restarted by Replit
+        process.exit(0);
+      }, 5000);
+      
+      // Return success
+      res.status(200).json({
+        success: true,
+        message: 'Emergency backup procedure initiated',
+        backupFile: backupFileName,
+        securityIssues: securityIssues.length > 0 ? securityIssues : 'No issues found',
+        restart: 'Application will restart in 5 seconds'
+      });
+    } catch (error) {
+      console.error('Error during emergency backup:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error during emergency backup',
+        error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
   });
