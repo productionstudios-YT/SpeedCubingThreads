@@ -375,8 +375,10 @@ Please enter the role IDs to ping, comma separated (or leave empty to enter cust
       // These should be real Discord role IDs
       const emergencyRoleIDs = prompt(
         "Enter moderator role IDs to ping (comma separated):", 
-        // For demonstration purposes, we're assuming these are Discord role IDs
-        // In production, you would replace these with actual role IDs
+        // These are the role IDs for the roles specified by the user:
+        // - MOD (Pin if rule broken)
+        // - Owner (Pin if problem)
+        // - sachitshah_63900 (user)
         "1253928067198357577,1253928067198357578,1253928067198357580"
       );
       

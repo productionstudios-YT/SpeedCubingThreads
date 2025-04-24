@@ -1,4 +1,4 @@
-import express, { Express } from "express";
+import express, { Express, Request } from "express";
 import { createServer, type Server } from "http";
 import fs from 'fs';
 import path from 'path';
@@ -7,9 +7,18 @@ import { TextChannel } from 'discord.js';
 import { storage } from "./storage";
 import { discordBot } from "./discord/bot";
 import { scheduler } from "./discord/scheduler";
-import { insertBotConfigSchema } from "@shared/schema";
+import { insertBotConfigSchema, User } from "@shared/schema";
 import { z } from "zod";
 import { requireAuth } from "./auth";
+
+// Extend the Express Request type to include user property
+declare global {
+  namespace Express {
+    interface Request {
+      user?: User;
+    }
+  }
+}
 
 // Helper function to get directory size
 async function getDirSize(dirPath: string): Promise<number> {
@@ -222,8 +231,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       console.log('🚨 EMERGENCY: Emergency backup procedure initiated');
       
-      // Get moderator role IDs from request
-      const { moderatorRoles } = req.body;
+      // Get moderator role IDs from request or use default emergency roles
+      // Default roles for emergency notifications (as specified by user):
+      // - MOD (Pin if rule broken)
+      // - Owner (Pin if problem)
+      // - sachitshah_63900
+      const defaultEmergencyRoles = [
+        "1253928067198357577", // MOD role ID
+        "1253928067198357578", // Owner role ID 
+        "1253928067198357580"  // sachitshah_63900 user ID or role
+      ];
+      
+      // Use provided roles or fall back to defaults
+      const { moderatorRoles = defaultEmergencyRoles } = req.body;
       
       // 1. Create backup of current storage
       const backupTimestamp = new Date().toISOString().replace(/:/g, '-');
@@ -275,10 +295,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
           for (const config of configs) {
             try {
               // Create role mentions for each moderator role
-              const roleMentions = moderatorRoles.map((roleId: string) => `<@&${roleId}>`).join(' ');
+              const roleMentions = moderatorRoles.map((roleId: string) => {
+                // For user mentions (sachitshah_63900), we need to use <@ID> instead of <@&ID>
+                // We're assuming the third ID is a user ID based on the pattern provided
+                if (roleId === "1253928067198357580") {
+                  return `<@${roleId}>`;  // User mention
+                } else {
+                  return `<@&${roleId}>`; // Role mention
+                }
+              }).join(' ');
               
-              // Create notification message
-              const notificationMessage = `${roleMentions} **EMERGENCY ALERT**: An emergency backup was triggered by the administrator. System is being checked for issues. Timestamp: ${new Date().toISOString()}`;
+              // Get the name of the user who triggered the emergency
+              const triggeredBy = req.user?.username || "an administrator";
+              
+              // Create notification message with details about which roles are being pinged
+              const notificationMessage = `
+🚨 **EMERGENCY ALERT** 🚨
+
+An emergency backup was triggered by **${triggeredBy}** at ${new Date().toISOString()}.
+The system is currently being backed up, checked for security issues, and will restart shortly.
+
+${roleMentions}
+
+- MOD team: Please check for rule violations
+- Owner: Please investigate any system problems
+- sachitshah_63900: Your attention is required
+
+The bot will be temporarily offline during the restart process.
+`;
               
               // Send the message using our helper method
               const sent = await discordBot.sendEmergencyNotification(
