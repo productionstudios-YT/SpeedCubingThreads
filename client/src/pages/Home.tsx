@@ -163,6 +163,13 @@ export default function Home() {
   const [isCleaningThreads, setIsCleaningThreads] = useState(false);
   const [isEmergencyBackup, setIsEmergencyBackup] = useState(false);
   const [moderatorRoles, setModeratorRoles] = useState<string[]>([]);
+  
+  // Predefined roles for emergency notifications
+  const predefinedRoles = {
+    "MOD": "Moderator role",
+    "OWNER": "Owner role",
+    "SACHIT": "sachitshah_63900's user role"
+  };
   const { toast } = useToast();
 
   const { data: healthData, isLoading: healthLoading } = useQuery<HealthResponse>({
@@ -350,19 +357,51 @@ export default function Home() {
   const triggerEmergencyBackup = () => {
     if (isEmergencyBackup) return;
     
+    // Create checkbox options for roles
+    const roleSelectionMessage = `⚠️ WARNING: This will perform an emergency backup, ping moderators, and restart the system.
+
+This should ONLY be used in emergency situations.
+
+Which roles should be pinged during this emergency?
+- MOD (Pin if rule broken) 
+- Owner (Pin if problem) 
+- sachitshah_63900
+
+Please enter the role IDs to ping, comma separated (or leave empty to enter custom IDs):`;
+
     // Show confirmation dialog
-    if (confirm("⚠️ WARNING: This will perform an emergency backup, ping moderators, and restart the system.\n\nThis should ONLY be used in emergency situations. Are you absolutely sure you want to proceed?")) {
-      // Default to the daily scramble ping role if no specific roles are set
-      if (moderatorRoles.length === 0) {
-        // Get the @daily scramble ping role ID - you would need to replace this with actual role IDs
-        const dailyScramblePingRoleID = prompt("Enter moderator role ID(s) to ping (comma separated):", "");
-        if (dailyScramblePingRoleID) {
-          setModeratorRoles(dailyScramblePingRoleID.split(',').map(id => id.trim()));
-        }
-      }
+    if (confirm(roleSelectionMessage)) {
+      // Default set of roles when the emergency button is clicked
+      // These should be real Discord role IDs
+      const emergencyRoleIDs = prompt(
+        "Enter moderator role IDs to ping (comma separated):", 
+        // For demonstration purposes, we're assuming these are Discord role IDs
+        // In production, you would replace these with actual role IDs
+        "1253928067198357577,1253928067198357578,1253928067198357580"
+      );
       
-      setIsEmergencyBackup(true);
-      emergencyBackupMutation.mutate();
+      if (emergencyRoleIDs) {
+        // Set the roles to ping
+        const rolesToPing = emergencyRoleIDs.split(',').map(id => id.trim());
+        setModeratorRoles(rolesToPing);
+        
+        // Show which roles will be pinged
+        const roleCount = rolesToPing.length;
+        toast({
+          title: "Emergency Procedure Initiated",
+          description: `Will ping ${roleCount} role${roleCount !== 1 ? 's' : ''} during the emergency notification.`,
+        });
+        
+        // Start the emergency backup process
+        setIsEmergencyBackup(true);
+        emergencyBackupMutation.mutate();
+      } else {
+        toast({
+          title: "Emergency Cancelled",
+          description: "No role IDs provided. Emergency procedure cancelled.",
+          variant: "destructive",
+        });
+      }
     }
   };
 
@@ -630,6 +669,15 @@ export default function Home() {
                             <p className="text-[#A3A6AA] text-xs mt-1">
                               ⚠️ Use only in emergency situations. This will backup data, perform security checks, ping moderators, and restart the entire application.
                             </p>
+                            <div className="bg-[#202225] rounded p-2 mt-2">
+                              <h4 className="text-white text-xs font-semibold mb-1">Roles that will be pinged:</h4>
+                              <ul className="text-[#A3A6AA] text-xs space-y-1 pl-4 list-disc">
+                                <li>@MOD (Pin if rule broken)</li>
+                                <li>@Owner (Pin if problem)</li>
+                                <li>@sachitshah_63900</li>
+                              </ul>
+                              <p className="text-[#A3A6AA] text-xs mt-2">You will be prompted to confirm the role IDs before pinging.</p>
+                            </div>
                           </div>
                         </div>
                       </div>
