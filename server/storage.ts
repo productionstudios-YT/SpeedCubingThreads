@@ -1,7 +1,14 @@
 import { BotConfig, ChallengeThread, InsertBotConfig, InsertChallengeThread, User, UserRole } from '@shared/schema';
+import { db } from './db';
+import { botConfig, challengeThreads, users } from '@shared/schema';
+import { eq, and, desc, sql } from 'drizzle-orm';
+import session from "express-session";
+import connectPg from "connect-pg-simple";
+import { pool } from './db';
 
 // Interface for the storage operations
 export interface IStorage {
+  sessionStore: session.Store;
   // Bot config operations
   getBotConfig(id: number): Promise<BotConfig | undefined>;
   getBotConfigByGuildId(guildId: string): Promise<BotConfig | undefined>;
@@ -33,6 +40,7 @@ export class MemStorage implements IStorage {
   private botConfigCurrentId: number;
   private challengeThreadCurrentId: number;
   private userCurrentId: number;
+  sessionStore: session.Store;
   
   constructor() {
     this.botConfigs = new Map();
@@ -41,6 +49,13 @@ export class MemStorage implements IStorage {
     this.botConfigCurrentId = 1;
     this.challengeThreadCurrentId = 1;
     this.userCurrentId = 1;
+    
+    // Create in-memory session store
+    const createMemoryStore = require('memorystore');
+    const MemoryStore = createMemoryStore(session);
+    this.sessionStore = new MemoryStore({
+      checkPeriod: 86400000 // prune expired entries every 24h
+    });
     
     // Load data from file if exists
     this.loadFromFile();
@@ -256,4 +271,149 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Database Storage implementation
+export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
+
+  constructor() {
+    const PostgresSessionStore = connectPg(session);
+    this.sessionStore = new PostgresSessionStore({ 
+      pool,
+      createTableIfMissing: true 
+    });
+  }
+
+  // Bot config methods
+  async getBotConfig(id: number): Promise<BotConfig | undefined> {
+    const [config] = await db.select().from(botConfig).where(eq(botConfig.id, id));
+    return config;
+  }
+  
+  async getBotConfigByGuildId(guildId: string): Promise<BotConfig | undefined> {
+    const [config] = await db.select().from(botConfig).where(eq(botConfig.guildId, guildId));
+    return config;
+  }
+  
+  async getAllBotConfigs(): Promise<BotConfig[]> {
+    return await db.select().from(botConfig);
+  }
+  
+  async createBotConfig(config: InsertBotConfig): Promise<BotConfig> {
+    const [newConfig] = await db.insert(botConfig).values(config).returning();
+    return newConfig;
+  }
+  
+  async updateBotConfig(id: number, config: Partial<BotConfig>): Promise<BotConfig | undefined> {
+    const [updated] = await db.update(botConfig)
+      .set(config)
+      .where(eq(botConfig.id, id))
+      .returning();
+    return updated;
+  }
+  
+  async deleteBotConfig(id: number): Promise<boolean> {
+    try {
+      const result = await db.delete(botConfig).where(eq(botConfig.id, id));
+      return result.rowCount ? result.rowCount > 0 : false;
+    } catch (error) {
+      console.error("Error deleting bot config:", error);
+      return false;
+    }
+  }
+  
+  // Challenge thread methods
+  async getChallengeThread(id: number): Promise<ChallengeThread | undefined> {
+    const [thread] = await db.select().from(challengeThreads).where(eq(challengeThreads.id, id));
+    return thread;
+  }
+  
+  async getChallengeThreadByThreadId(threadId: string): Promise<ChallengeThread | undefined> {
+    const [thread] = await db.select().from(challengeThreads).where(eq(challengeThreads.threadId, threadId));
+    return thread;
+  }
+  
+  async getAllChallengeThreads(): Promise<ChallengeThread[]> {
+    return await db.select().from(challengeThreads).orderBy(desc(challengeThreads.createdAt));
+  }
+  
+  async getExpiredThreads(): Promise<ChallengeThread[]> {
+    const now = new Date();
+    return await db.select()
+      .from(challengeThreads)
+      .where(
+        and(
+          eq(challengeThreads.isDeleted, false),
+          sql`${challengeThreads.expiresAt} < ${now}`
+        )
+      );
+  }
+  
+  async createChallengeThread(thread: InsertChallengeThread): Promise<ChallengeThread> {
+    const [newThread] = await db.insert(challengeThreads).values({
+      ...thread,
+      createdAt: new Date(),
+      isDeleted: false
+    }).returning();
+    return newThread;
+  }
+  
+  async markThreadAsDeleted(id: number): Promise<boolean> {
+    try {
+      const result = await db.update(challengeThreads)
+        .set({ isDeleted: true })
+        .where(eq(challengeThreads.id, id));
+      return result.rowCount ? result.rowCount > 0 : false;
+    } catch (error) {
+      console.error("Error marking thread as deleted:", error);
+      return false;
+    }
+  }
+  
+  // User methods
+  async getUser(id: number): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+  
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
+  }
+  
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users);
+  }
+  
+  async createUser(username: string, passwordHash: string, role: UserRole): Promise<User> {
+    const [user] = await db.insert(users).values({
+      username,
+      passwordHash,
+      role,
+      createdAt: new Date(),
+      lastLogin: null
+    }).returning();
+    return user;
+  }
+  
+  async updateUserLastLogin(id: number): Promise<User | undefined> {
+    const [updated] = await db.update(users)
+      .set({ lastLogin: new Date() })
+      .where(eq(users.id, id))
+      .returning();
+    return updated;
+  }
+}
+
+// Initialize the appropriate storage implementation
+let storage: IStorage;
+
+// Check if a database URL is available and use DatabaseStorage
+if (process.env.DATABASE_URL) {
+  console.log('Using PostgreSQL database storage for increased capacity (300MB+)');
+  storage = new DatabaseStorage();
+} else {
+  console.log('Using in-memory storage with file persistence');
+  storage = new MemStorage();
+}
+
+export { storage };
