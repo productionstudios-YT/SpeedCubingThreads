@@ -47,7 +47,7 @@ async function getDirSize(dirPath: string): Promise<number> {
   return sizes.reduce((acc, size) => acc + size, 0);
 }
 
-// Helper function to format bytes
+// Helper function to format bytes with support for up to 50 TB
 function formatBytes(bytes: number, decimals = 2) {
   if (bytes === 0) return '0 Bytes';
   
@@ -55,7 +55,19 @@ function formatBytes(bytes: number, decimals = 2) {
   const dm = decimals < 0 ? 0 : decimals;
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
   
+  // Find the appropriate size unit
   const i = Math.floor(Math.log(bytes) / Math.log(k));
+  
+  // Special handling for TB and above to support up to 50 TB
+  if (i >= 4) { // 4 is the index for TB in the sizes array
+    const tbValue = bytes / Math.pow(k, 4); // Calculate value in TB
+    
+    if (tbValue <= 50) {
+      // If 50 TB or less, display in TB
+      return parseFloat(tbValue.toFixed(dm)) + ' TB';
+    }
+    // If more than 50 TB, use the regular calculation
+  }
   
   return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
 }
