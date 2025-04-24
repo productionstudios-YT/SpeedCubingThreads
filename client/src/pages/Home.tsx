@@ -161,6 +161,8 @@ export default function Home() {
   const [isCreatingTestThread, setIsCreatingTestThread] = useState(false);
   const [isTriggeringDailyPost, setIsTriggeringDailyPost] = useState(false);
   const [isCleaningThreads, setIsCleaningThreads] = useState(false);
+  const [isEmergencyBackup, setIsEmergencyBackup] = useState(false);
+  const [moderatorRoles, setModeratorRoles] = useState<string[]>([]);
   const { toast } = useToast();
 
   const { data: healthData, isLoading: healthLoading } = useQuery<HealthResponse>({
@@ -286,6 +288,40 @@ export default function Home() {
     }
   });
   
+  // Mutation for emergency backup procedure
+  const emergencyBackupMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/emergency-backup", {
+        moderatorRoles: moderatorRoles
+      });
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Emergency Backup Initiated",
+        description: `Successfully created backup: ${data.backupFile}. Application will restart in 5 seconds.`,
+      });
+      setIsEmergencyBackup(false);
+      
+      // Show a system-level notification as well for critical action
+      setTimeout(() => {
+        toast({
+          title: "SYSTEM IS RESTARTING",
+          description: "The system will be unavailable for a few seconds while restarting...",
+          variant: "destructive",
+        });
+      }, 3000);
+    },
+    onError: (error) => {
+      toast({
+        title: "Emergency Backup Failed",
+        description: `Failed to perform emergency backup: ${error.message}`,
+        variant: "destructive",
+      });
+      setIsEmergencyBackup(false);
+    }
+  });
+  
   // Function to create a test thread
   const createTestThread = () => {
     if (isCreatingTestThread) return;
@@ -308,6 +344,26 @@ export default function Home() {
     
     setIsCleaningThreads(true);
     cleanupThreadsMutation.mutate();
+  };
+  
+  // Function to trigger emergency backup
+  const triggerEmergencyBackup = () => {
+    if (isEmergencyBackup) return;
+    
+    // Show confirmation dialog
+    if (confirm("⚠️ WARNING: This will perform an emergency backup, ping moderators, and restart the system.\n\nThis should ONLY be used in emergency situations. Are you absolutely sure you want to proceed?")) {
+      // Default to the daily scramble ping role if no specific roles are set
+      if (moderatorRoles.length === 0) {
+        // Get the @daily scramble ping role ID - you would need to replace this with actual role IDs
+        const dailyScramblePingRoleID = prompt("Enter moderator role ID(s) to ping (comma separated):", "");
+        if (dailyScramblePingRoleID) {
+          setModeratorRoles(dailyScramblePingRoleID.split(',').map(id => id.trim()));
+        }
+      }
+      
+      setIsEmergencyBackup(true);
+      emergencyBackupMutation.mutate();
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -551,6 +607,30 @@ export default function Home() {
                             <i className="fas fa-clock mr-1"></i> Auto Cleanup
                             Before Posting
                           </span>
+                          
+                          <div className="w-full border-t border-[#202225] my-2"></div>
+                          
+                          <div className="mt-2">
+                            <h3 className="text-white font-semibold text-sm mb-2">Emergency Controls</h3>
+                            <Button 
+                              className="bg-red-600 hover:bg-red-700 text-white text-xs px-2 py-1 rounded"
+                              onClick={() => triggerEmergencyBackup()}
+                              disabled={isEmergencyBackup}
+                            >
+                              {isEmergencyBackup ? (
+                                <>
+                                  <i className="fas fa-spinner fa-spin mr-1"></i> Emergency In Progress...
+                                </>
+                              ) : (
+                                <>
+                                  <i className="fas fa-exclamation-triangle mr-1"></i> Emergency Backup & Restart
+                                </>
+                              )}
+                            </Button>
+                            <p className="text-[#A3A6AA] text-xs mt-1">
+                              ⚠️ Use only in emergency situations. This will backup data, perform security checks, ping moderators, and restart the entire application.
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </div>
