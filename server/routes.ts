@@ -226,7 +226,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Emergency backup and security endpoint
+  // Security check endpoint (silent, no notifications)
+  apiRouter.post("/security-check", requireAuth, async (req, res) => {
+    try {
+      console.log('🔍 SECURITY: Security check initiated');
+      
+      // Perform security scan
+      console.log(`🔍 SECURITY: Performing security scan`);
+      
+      // Array to collect security issues
+      const securityIssues = [];
+      
+      // Check for application directory size and structure
+      try {
+        const dirSize = await getDirSize('.');
+        console.log(`📊 SECURITY: Application directory size: ${formatBytes(dirSize)}`);
+        
+        // Check bot client status
+        const botStatus = discordBot.isClientReady() ? "online" : "offline";
+        console.log(`📊 SECURITY: Bot status: ${botStatus}`);
+        
+        if (botStatus === "offline") {
+          securityIssues.push('Discord bot is offline');
+        }
+        
+        // Check for storage integrity
+        try {
+          // Check if we can access configs
+          const configs = await storage.getAllBotConfigs();
+          console.log(`📊 SECURITY: Storage check - Found ${configs.length} bot configurations`);
+          
+          // Check if we can access threads
+          const threads = await storage.getAllChallengeThreads();
+          console.log(`📊 SECURITY: Storage check - Found ${threads.length} challenge threads`);
+          
+          // Check if we can access users
+          const users = await storage.getAllUsers();
+          console.log(`📊 SECURITY: Storage check - Found ${users.length} users`);
+        } catch (storageError) {
+          console.error('Error checking storage:', storageError);
+          securityIssues.push('Storage access error');
+        }
+        
+      } catch (scanError) {
+        console.error('Error during security scan:', scanError);
+        securityIssues.push('Error during security scan');
+      }
+      
+      // Return success with findings
+      res.status(200).json({
+        success: true,
+        message: 'Security check completed',
+        timestamp: new Date().toISOString(),
+        securityIssues: securityIssues.length > 0 ? securityIssues : 'No issues found',
+        size: formatBytes(await getDirSize('.'))
+      });
+    } catch (error) {
+      console.error('Error during security check:', error);
+      res.status(500).json({ 
+        success: false, 
+        message: 'Error during security check',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+// Emergency backup and security endpoint
   apiRouter.post("/emergency-backup", requireAuth, async (req, res) => {
     try {
       console.log('🚨 EMERGENCY: Emergency backup procedure initiated');
@@ -351,30 +416,28 @@ The bot will be temporarily offline during the restart process.
         securityIssues.push('Error during moderator notification');
       }
       
-      // 4. Schedule application restart
-      console.log(`🔄 EMERGENCY: Scheduling application restart`);
+      // 4. Perform application restart immediately
+      console.log(`🔄 EMERGENCY: Initiating immediate application restart`);
       
-      // Schedule restart after response is sent
-      setTimeout(() => {
-        console.log('================================================================');
-        console.log('🔄 EMERGENCY RESTART: Restarting application...');
-        console.log('================================================================');
-        
-        // Stop all scheduled tasks
-        scheduler.stopAllJobs();
-        
-        // Exit process - will be restarted by Replit
-        process.exit(0);
-      }, 5000);
-      
-      // Return success
+      // Return success first to ensure the client gets the response
       res.status(200).json({
         success: true,
         message: 'Emergency backup procedure initiated',
         backupFile: backupFileName,
         securityIssues: securityIssues.length > 0 ? securityIssues : 'No issues found',
-        restart: 'Application will restart in 5 seconds'
+        restart: 'Application will restart immediately'
       });
+      
+      // Immediate restart
+      console.log('================================================================');
+      console.log('🔄 EMERGENCY RESTART: Restarting application...');
+      console.log('================================================================');
+      
+      // Stop all scheduled tasks
+      scheduler.stopAllJobs();
+      
+      // Exit process - will be restarted by Replit
+      process.exit(0);
     } catch (error) {
       console.error('Error during emergency backup:', error);
       res.status(500).json({ 
