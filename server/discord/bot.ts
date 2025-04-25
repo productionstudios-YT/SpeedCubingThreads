@@ -156,6 +156,8 @@ class DiscordBot {
         await this.handleScrambleCommand(interaction);
       } else if (interaction.commandName === 'custom-scramble') {
         await this.handleCustomScrambleCommand(interaction);
+      } else if (interaction.commandName === 'analytics') {
+        await this.handleAnalyticsCommand(interaction);
       }
     });
   }
@@ -324,6 +326,45 @@ class DiscordBot {
             )
         );
         
+      // Create analytics command
+      console.log('7️⃣ Creating and registering analytics command...');
+      const analyticsCommand = new SlashCommandBuilder()
+        .setName('analytics')
+        .setDescription('View performance analytics and statistics')
+        .addStringOption(option => 
+          option.setName('type')
+            .setDescription('Type of analytics to view')
+            .setRequired(true)
+            .addChoices(
+              { name: 'Command Usage', value: 'commands' },
+              { name: 'System Performance', value: 'system' },
+              { name: 'Scramble Performance', value: 'solves' },
+              { name: 'Daily Statistics', value: 'daily' },
+              { name: 'Overview', value: 'overview' }
+            )
+        )
+        .addStringOption(option => 
+          option.setName('cube_type')
+            .setDescription('Filter results by cube type (for scramble performance)')
+            .setRequired(false)
+            .addChoices(
+              { name: '2x2', value: '2x2' },
+              { name: '3x3', value: '3x3' },
+              { name: '3x3 BLD', value: '3x3 BLD' },
+              { name: '3x3 OH', value: '3x3 OH' },
+              { name: 'Pyraminx', value: 'Pyraminx' },
+              { name: 'Skewb', value: 'Skewb' },
+              { name: 'Clock', value: 'Clock' }
+            )
+        )
+        .addIntegerOption(option =>
+          option.setName('limit')
+            .setDescription('Number of entries to show (default: 10)')
+            .setRequired(false)
+            .setMinValue(1)
+            .setMaxValue(50)
+        );
+      
       // Combine all commands
       const commands = [
         dailyCommand,
@@ -331,7 +372,8 @@ class DiscordBot {
         historyCommand,
         reactEmojiCommand,
         scrambleCommand,
-        customScrambleCommand
+        customScrambleCommand,
+        analyticsCommand
       ];
       
       // ONLY register to the specific guild to avoid global duplication

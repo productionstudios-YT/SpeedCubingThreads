@@ -300,6 +300,112 @@ export class MemStorage implements IStorage {
     this.saveToFile();
     return user;
   }
+
+  // Analytics operations implementation (in-memory)
+  // Command usage tracking
+  async logCommandUsage(data: InsertCommandUsage): Promise<CommandUsage> {
+    // In-memory implementation (simplified for memory storage)
+    const entry: CommandUsage = {
+      id: 1, // In memory, we don't track these properly
+      ...data,
+      timestamp: new Date()
+    };
+    return entry;
+  }
+  
+  async getCommandUsage(limit: number = 100): Promise<CommandUsage[]> {
+    // Simplified for in-memory storage
+    return [];
+  }
+  
+  async getCommandUsageByName(commandName: string, limit: number = 100): Promise<CommandUsage[]> {
+    // Simplified for in-memory storage
+    return [];
+  }
+  
+  async getCommandUsageByUser(userId: string, limit: number = 100): Promise<CommandUsage[]> {
+    // Simplified for in-memory storage
+    return [];
+  }
+  
+  // System metrics tracking
+  async recordSystemMetrics(metrics: InsertSystemMetrics): Promise<SystemMetrics> {
+    // Simplified for in-memory storage
+    const entry: SystemMetrics = {
+      id: 1,
+      timestamp: new Date(),
+      ...metrics
+    };
+    return entry;
+  }
+  
+  async getLatestSystemMetrics(): Promise<SystemMetrics | undefined> {
+    // Simplified for in-memory storage
+    return undefined;
+  }
+  
+  async getSystemMetricsHistory(limit: number = 100): Promise<SystemMetrics[]> {
+    // Simplified for in-memory storage
+    return [];
+  }
+  
+  // Daily analytics tracking
+  async createOrUpdateDailyAnalytics(date: Date, data: Partial<InsertDailyAnalytics>): Promise<DailyAnalytics> {
+    // Simplified for in-memory storage
+    const entry: DailyAnalytics = {
+      id: 1,
+      date,
+      totalCommands: data.totalCommands ?? 0,
+      commandBreakdown: data.commandBreakdown,
+      scrambleUsage: data.scrambleUsage,
+      dailyActiveUsers: data.dailyActiveUsers ?? 0,
+      averageResponseTime: data.averageResponseTime,
+      errorCount: data.errorCount ?? 0,
+      dailyChallengeMetrics: data.dailyChallengeMetrics
+    };
+    return entry;
+  }
+  
+  async getDailyAnalytics(date: Date): Promise<DailyAnalytics | undefined> {
+    // Simplified for in-memory storage
+    return undefined;
+  }
+  
+  async getDailyAnalyticsRange(startDate: Date, endDate: Date): Promise<DailyAnalytics[]> {
+    // Simplified for in-memory storage
+    return [];
+  }
+  
+  // Scramble performance tracking
+  async recordScramblePerformance(data: InsertScramblePerformance): Promise<ScramblePerformance> {
+    // Simplified for in-memory storage
+    const entry: ScramblePerformance = {
+      id: 1,
+      ...data,
+      timestamp: new Date()
+    };
+    return entry;
+  }
+  
+  async getScramblePerformance(limit: number = 100): Promise<ScramblePerformance[]> {
+    // Simplified for in-memory storage
+    return [];
+  }
+  
+  async getScramblePerformanceByUser(userId: string, limit: number = 100): Promise<ScramblePerformance[]> {
+    // Simplified for in-memory storage
+    return [];
+  }
+  
+  async getScramblePerformanceByCubeType(cubeType: string, limit: number = 100): Promise<ScramblePerformance[]> {
+    // Simplified for in-memory storage
+    return [];
+  }
+  
+  async getAverageScramblePerformanceByCubeType(): Promise<{cubeType: string, averageSolveTime: number}[]> {
+    // Simplified for in-memory storage
+    return [];
+  }
 }
 
 // Database Storage implementation
@@ -432,6 +538,146 @@ export class DatabaseStorage implements IStorage {
       .where(eq(users.id, id))
       .returning();
     return updated;
+  }
+
+  // Analytics operations implementation
+  // Command usage tracking
+  async logCommandUsage(data: InsertCommandUsage): Promise<CommandUsage> {
+    const [entry] = await db.insert(commandUsage).values(data).returning();
+    return entry;
+  }
+  
+  async getCommandUsage(limit: number = 100): Promise<CommandUsage[]> {
+    return await db.select()
+      .from(commandUsage)
+      .orderBy(desc(commandUsage.timestamp))
+      .limit(limit);
+  }
+  
+  async getCommandUsageByName(commandName: string, limit: number = 100): Promise<CommandUsage[]> {
+    return await db.select()
+      .from(commandUsage)
+      .where(eq(commandUsage.commandName, commandName))
+      .orderBy(desc(commandUsage.timestamp))
+      .limit(limit);
+  }
+  
+  async getCommandUsageByUser(userId: string, limit: number = 100): Promise<CommandUsage[]> {
+    return await db.select()
+      .from(commandUsage)
+      .where(eq(commandUsage.userId, userId))
+      .orderBy(desc(commandUsage.timestamp))
+      .limit(limit);
+  }
+  
+  // System metrics tracking
+  async recordSystemMetrics(metrics: InsertSystemMetrics): Promise<SystemMetrics> {
+    const [entry] = await db.insert(systemMetrics).values(metrics).returning();
+    return entry;
+  }
+  
+  async getLatestSystemMetrics(): Promise<SystemMetrics | undefined> {
+    const [entry] = await db.select()
+      .from(systemMetrics)
+      .orderBy(desc(systemMetrics.timestamp))
+      .limit(1);
+    return entry;
+  }
+  
+  async getSystemMetricsHistory(limit: number = 100): Promise<SystemMetrics[]> {
+    return await db.select()
+      .from(systemMetrics)
+      .orderBy(desc(systemMetrics.timestamp))
+      .limit(limit);
+  }
+  
+  // Daily analytics tracking
+  async createOrUpdateDailyAnalytics(date: Date, data: Partial<InsertDailyAnalytics>): Promise<DailyAnalytics> {
+    // Format date to YYYY-MM-DD format for SQL date comparison
+    const formattedDate = date.toISOString().split('T')[0];
+    
+    // Check if an entry already exists for this date
+    const [existingEntry] = await db.select()
+      .from(dailyAnalytics)
+      .where(sql`${dailyAnalytics.date}::text = ${formattedDate}`);
+    
+    if (existingEntry) {
+      // Update existing entry
+      const [updated] = await db.update(dailyAnalytics)
+        .set(data)
+        .where(eq(dailyAnalytics.id, existingEntry.id))
+        .returning();
+      return updated;
+    } else {
+      // Create new entry
+      const [newEntry] = await db.insert(dailyAnalytics)
+        .values({ ...data, date })
+        .returning();
+      return newEntry;
+    }
+  }
+  
+  async getDailyAnalytics(date: Date): Promise<DailyAnalytics | undefined> {
+    // Format date to YYYY-MM-DD format for SQL date comparison
+    const formattedDate = date.toISOString().split('T')[0];
+    
+    const [entry] = await db.select()
+      .from(dailyAnalytics)
+      .where(sql`${dailyAnalytics.date}::text = ${formattedDate}`);
+    return entry;
+  }
+  
+  async getDailyAnalyticsRange(startDate: Date, endDate: Date): Promise<DailyAnalytics[]> {
+    return await db.select()
+      .from(dailyAnalytics)
+      .where(
+        and(
+          sql`${dailyAnalytics.date} >= ${startDate.toISOString().split('T')[0]}`,
+          sql`${dailyAnalytics.date} <= ${endDate.toISOString().split('T')[0]}`
+        )
+      )
+      .orderBy(dailyAnalytics.date);
+  }
+  
+  // Scramble performance tracking
+  async recordScramblePerformance(data: InsertScramblePerformance): Promise<ScramblePerformance> {
+    const [entry] = await db.insert(scramblePerformance).values(data).returning();
+    return entry;
+  }
+  
+  async getScramblePerformance(limit: number = 100): Promise<ScramblePerformance[]> {
+    return await db.select()
+      .from(scramblePerformance)
+      .orderBy(desc(scramblePerformance.timestamp))
+      .limit(limit);
+  }
+  
+  async getScramblePerformanceByUser(userId: string, limit: number = 100): Promise<ScramblePerformance[]> {
+    return await db.select()
+      .from(scramblePerformance)
+      .where(eq(scramblePerformance.userId, userId))
+      .orderBy(desc(scramblePerformance.timestamp))
+      .limit(limit);
+  }
+  
+  async getScramblePerformanceByCubeType(cubeType: string, limit: number = 100): Promise<ScramblePerformance[]> {
+    return await db.select()
+      .from(scramblePerformance)
+      .where(eq(scramblePerformance.cubeType, cubeType))
+      .orderBy(desc(scramblePerformance.timestamp))
+      .limit(limit);
+  }
+  
+  async getAverageScramblePerformanceByCubeType(): Promise<{cubeType: string, averageSolveTime: number}[]> {
+    const result = await db.select({
+      cubeType: scramblePerformance.cubeType,
+      averageSolveTime: sql<number>`avg(${scramblePerformance.solveTime})`
+    })
+    .from(scramblePerformance)
+    .where(sql`${scramblePerformance.solveTime} IS NOT NULL`)
+    .groupBy(scramblePerformance.cubeType);
+    
+    return result;
   }
 }
 
