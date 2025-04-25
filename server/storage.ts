@@ -616,6 +616,18 @@ export class DatabaseStorage implements IStorage {
     // Format date to YYYY-MM-DD format for SQL date comparison
     const formattedDate = date.toISOString().split('T')[0];
     
+    // Create the complete record with the formatted date
+    const recordToInsert = {
+      totalCommands: data.totalCommands ?? 0,
+      commandBreakdown: data.commandBreakdown,
+      scrambleUsage: data.scrambleUsage,
+      dailyActiveUsers: data.dailyActiveUsers ?? 0,
+      averageResponseTime: data.averageResponseTime ?? null,
+      errorCount: data.errorCount ?? 0,
+      dailyChallengeMetrics: data.dailyChallengeMetrics,
+      date: formattedDate
+    };
+    
     // Check if an entry already exists for this date
     const [existingEntry] = await db.select()
       .from(dailyAnalytics)
@@ -624,14 +636,14 @@ export class DatabaseStorage implements IStorage {
     if (existingEntry) {
       // Update existing entry
       const [updated] = await db.update(dailyAnalytics)
-        .set(data)
+        .set(recordToInsert)
         .where(eq(dailyAnalytics.id, existingEntry.id))
         .returning();
       return updated;
     } else {
       // Create new entry
       const [newEntry] = await db.insert(dailyAnalytics)
-        .values({ ...data, date })
+        .values(recordToInsert)
         .returning();
       return newEntry;
     }
