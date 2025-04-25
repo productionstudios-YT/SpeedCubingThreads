@@ -507,6 +507,17 @@ Please enter the role IDs to ping, comma separated (or leave empty to enter cust
               </div>
               <div
                 className={`flex items-center p-2 rounded hover:bg-[#36393F] cursor-pointer text-[#DCDDDE] ${
+                  selectedTab === "analytics" ? "bg-[#5865F2] text-white" : ""
+                }`}
+                onClick={() => setSelectedTab("analytics")}
+              >
+                <span className="mr-3 text-[#A3A6AA]">
+                  <i className="fas fa-chart-line"></i>
+                </span>
+                <span className="hidden md:block">Analytics</span>
+              </div>
+              <div
+                className={`flex items-center p-2 rounded hover:bg-[#36393F] cursor-pointer text-[#DCDDDE] ${
                   selectedTab === "settings" ? "bg-[#5865F2] text-white" : ""
                 }`}
                 onClick={() => setSelectedTab("settings")}

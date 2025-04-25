@@ -307,8 +307,15 @@ export class MemStorage implements IStorage {
     // In-memory implementation (simplified for memory storage)
     const entry: CommandUsage = {
       id: 1, // In memory, we don't track these properly
-      ...data,
-      timestamp: new Date()
+      channelId: data.channelId || null,
+      guildId: data.guildId || null,
+      error: data.error || null,
+      status: data.status,
+      timestamp: new Date(),
+      commandName: data.commandName,
+      userId: data.userId,
+      parameters: data.parameters || null,
+      executionTime: data.executionTime || null
     };
     return entry;
   }
@@ -334,7 +341,14 @@ export class MemStorage implements IStorage {
     const entry: SystemMetrics = {
       id: 1,
       timestamp: new Date(),
-      ...metrics
+      rssMemory: metrics.rssMemory,
+      heapTotal: metrics.heapTotal,
+      heapUsed: metrics.heapUsed,
+      external: metrics.external,
+      uptime: metrics.uptime,
+      activeThreads: metrics.activeThreads,
+      cpuUsage: metrics.cpuUsage || null,
+      loadAverage: metrics.loadAverage || null
     };
     return entry;
   }
@@ -381,8 +395,14 @@ export class MemStorage implements IStorage {
     // Simplified for in-memory storage
     const entry: ScramblePerformance = {
       id: 1,
-      ...data,
-      timestamp: new Date()
+      timestamp: new Date(),
+      scramble: data.scramble,
+      cubeType: data.cubeType,
+      userId: data.userId,
+      guildId: data.guildId || null,
+      solveTime: data.solveTime || null,
+      isCustomScramble: data.isCustomScramble || false,
+      customParameters: data.customParameters || null
     };
     return entry;
   }
