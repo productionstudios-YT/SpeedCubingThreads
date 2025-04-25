@@ -153,7 +153,7 @@ function DiscordMessageEmulator() {
 }
 
 export default function Home() {
-  const [selectedTab, setSelectedTab] = useState<"bot" | "schedule" | "threads" | "settings">(
+  const [selectedTab, setSelectedTab] = useState<"bot" | "schedule" | "threads" | "settings" | "analytics">(
     "bot"
   );
   const [channelId, setChannelId] = useState("");
@@ -626,6 +626,9 @@ Please enter the role IDs to ping, comma separated (or leave empty to enter cust
                           <span className="bg-[#202225] text-xs px-2 py-1 rounded">
                             <i className="fas fa-calendar-alt mr-1"></i> Daily
                             Challenges
+                          </span>
+                          <span className="bg-[#202225] text-xs px-2 py-1 rounded">
+                            <i className="fas fa-chart-line mr-1"></i> Analytics
                           </span>
                           <Button 
                             className="bg-[#5865F2] hover:bg-[#4752C4] text-white text-xs px-2 py-1 rounded"
