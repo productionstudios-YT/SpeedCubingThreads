@@ -286,13 +286,50 @@ class DiscordBot {
             )
         );
         
+      console.log('6️⃣ Creating and registering custom-scramble command...');
+      const customScrambleCommand = new SlashCommandBuilder()
+        .setName('custom-scramble')
+        .setDescription('Generate a custom scramble with specific parameters')
+        .addStringOption(option => 
+          option.setName('cube_type')
+            .setDescription('The type of cube to generate a scramble for')
+            .setRequired(true)
+            .addChoices(
+              { name: '2x2', value: '2x2' },
+              { name: '3x3', value: '3x3' },
+              { name: '3x3 BLD', value: '3x3 BLD' },
+              { name: '3x3 OH', value: '3x3 OH' },
+              { name: 'Pyraminx', value: 'Pyraminx' },
+              { name: 'Skewb', value: 'Skewb' },
+              { name: 'Clock', value: 'Clock' }
+            )
+        )
+        .addIntegerOption(option =>
+          option.setName('moves')
+            .setDescription('Number of moves in the scramble (optional)')
+            .setRequired(false)
+            .setMinValue(5)
+            .setMaxValue(30)
+        )
+        .addStringOption(option =>
+          option.setName('difficulty')
+            .setDescription('Difficulty level of the scramble (optional)')
+            .setRequired(false)
+            .addChoices(
+              { name: 'Easy', value: 'easy' },
+              { name: 'Medium', value: 'medium' },
+              { name: 'Hard', value: 'hard' }
+            )
+        );
+        
       // Combine all commands
       const commands = [
         dailyCommand,
         botCommand,
         historyCommand,
         reactEmojiCommand,
-        scrambleCommand
+        scrambleCommand,
+        customScrambleCommand
       ];
       
       // ONLY register to the specific guild to avoid global duplication

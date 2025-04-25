@@ -460,6 +460,133 @@ function generate3x3OHScramble(): string {
 }
 
 /**
+ * Generate a custom 3x3 cube scramble with specified parameters
+ * @param moves Number of moves (optional, defaults to 20)
+ * @param difficulty Difficulty level (optional, defaults to 'medium')
+ */
+function generateCustom3x3Scramble(moves: number = 20, difficulty: string = 'medium'): string {
+  // Base moves
+  const faces = ['R', 'L', 'U', 'D', 'F', 'B'];
+  // Modifiers differ by difficulty
+  let modifiers: string[];
+  
+  switch (difficulty) {
+    case 'easy':
+      // Simpler scramble with just quarter turns and fewer wide moves
+      modifiers = ['', '\''];
+      break;
+    case 'hard':
+      // More complex with double turns, wide moves, and slice moves
+      modifiers = ['', '\'', '2', 'w', 'w\'', 'w2'];
+      // Add slice moves for additional complexity
+      faces.push('M', 'E', 'S');
+      break;
+    case 'medium':
+    default:
+      // Standard competitive scramble
+      modifiers = ['', '\'', '2'];
+      break;
+  }
+  
+  const scramble: string[] = [];
+  let lastFace = '';
+  let lastAxis = '';
+  
+  for (let i = 0; i < moves; i++) {
+    let face;
+    
+    // Avoid repeating the same face or using the opposite face in sequence
+    do {
+      face = getRandomElement(faces);
+    } while (
+      face === lastFace || 
+      (opposites[lastFace] === face) ||
+      (lastAxis && sameAxis[face] && sameAxis[face].includes(lastAxis))
+    );
+    
+    lastFace = face;
+    if (['R', 'L', 'U', 'D', 'F', 'B'].includes(face)) {
+      lastAxis = face;
+    }
+    
+    const modifier = getRandomElement(modifiers);
+    scramble.push(face + modifier);
+  }
+  
+  return scramble.join(' ');
+}
+
+/**
+ * Generate a custom 2x2 cube scramble with specified parameters
+ * @param moves Number of moves (optional)
+ * @param difficulty Difficulty level (optional)
+ */
+function generateCustom2x2Scramble(moves: number = 10, difficulty: string = 'medium'): string {
+  // For 2x2, we only use RUF moves by convention
+  const faces = ['R', 'U', 'F'];
+  let modifiers: string[];
+  
+  // Adjust moves based on difficulty
+  if (difficulty === 'easy') {
+    moves = Math.min(moves, 8);
+    modifiers = ['', '\''];
+  } else if (difficulty === 'hard') {
+    moves = Math.max(moves, 11);
+    modifiers = ['', '\'', '2'];
+  } else {
+    // Medium difficulty
+    moves = Math.min(Math.max(moves, 9), 11);
+    modifiers = ['', '\'', '2'];
+  }
+  
+  const scramble: string[] = [];
+  let lastFace = '';
+  
+  for (let i = 0; i < moves; i++) {
+    let face;
+    
+    // Avoid repeating the same face
+    do {
+      face = getRandomElement(faces);
+    } while (face === lastFace);
+    
+    lastFace = face;
+    const modifier = getRandomElement(modifiers);
+    scramble.push(face + modifier);
+  }
+  
+  return scramble.join(' ');
+}
+
+/**
+ * Generate a custom scramble for any supported cube type
+ * @param cubeType Type of cube
+ * @param moves Number of moves (optional)
+ * @param difficulty Difficulty level (optional)
+ */
+export function generateCustomScramble(cubeType: CubeType, moves?: number, difficulty: string = 'medium'): string {
+  switch (cubeType) {
+    case cubeTypes.TWO:
+      return generateCustom2x2Scramble(moves || 10, difficulty);
+    case cubeTypes.THREE:
+      return generateCustom3x3Scramble(moves || 20, difficulty);
+    case cubeTypes.THREE_BLD:
+      return generateCustom3x3Scramble(moves || 20, difficulty);
+    case cubeTypes.THREE_OH:
+      return generateCustom3x3Scramble(moves || 20, difficulty);
+    case cubeTypes.PYRAMINX:
+      // For other puzzles, we fall back to the standard scrambler but adjust the output length
+      return generatePyraminxScramble();
+    case cubeTypes.SKEWB:
+      return generateSkewbScramble();
+    case cubeTypes.CLOCK:
+      return generateClockScramble();
+    default:
+      return generateCustom3x3Scramble(moves || 20, difficulty);
+  }
+}
+
+/**
  * Generate a scramble for the specified cube type
  */
 export function generateScramble(cubeType: CubeType): string {
