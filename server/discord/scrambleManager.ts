@@ -1,5 +1,5 @@
 import { CubeType, cubeTypes, daySchedule } from '@shared/schema';
-import { generateScramble } from '@shared/scrambleGenerators';
+import { generateScramble, generateCustomScramble } from '@shared/scrambleGenerators';
 
 /**
  * Class to manage daily scrambles based on the schedule
@@ -76,6 +76,28 @@ export class ScrambleManager {
     return {
       cubeType: actualCubeType,
       scramble
+    };
+  }
+  
+  /**
+   * Generate a custom scramble with specific parameters
+   * @param cubeType The cube type to generate a scramble for
+   * @param moves Optional number of moves
+   * @param difficulty Optional difficulty level (easy, medium, hard)
+   * @returns Object containing the cube type and custom scramble
+   */
+  generateCustomScrambleForType(cubeType: CubeType | string, moves?: number, difficulty: string = 'medium') {
+    // If it's a string, convert it to a proper CubeType
+    const actualCubeType = typeof cubeType === 'string' ? this.stringToCubeType(cubeType) : cubeType;
+    const scramble = generateCustomScramble(actualCubeType, moves, difficulty);
+    
+    return {
+      cubeType: actualCubeType,
+      scramble,
+      customParameters: {
+        moves: moves || 'default',
+        difficulty
+      }
     };
   }
 

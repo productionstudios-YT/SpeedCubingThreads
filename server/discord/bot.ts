@@ -154,6 +154,8 @@ class DiscordBot {
         await this.handleReactEmojiCommand(interaction);
       } else if (interaction.commandName === 'scramble') {
         await this.handleScrambleCommand(interaction);
+      } else if (interaction.commandName === 'custom-scramble') {
+        await this.handleCustomScrambleCommand(interaction);
       }
     });
   }
@@ -1615,6 +1617,241 @@ Good luck! 🍀`;
     }
   }
   
+  /**
+   * Handle the /custom-scramble command to generate a custom scramble with specific parameters
+   */
+  private async handleCustomScrambleCommand(interaction: ChatInputCommandInteraction) {
+    try {
+      await interaction.deferReply();
+      
+      // Get parameters from the options
+      const cubeType = interaction.options.getString('cube_type', true);
+      const moves = interaction.options.getInteger('moves') || undefined;
+      const difficulty = interaction.options.getString('difficulty') || 'medium';
+      
+      // Generate a custom scramble for the selected cube type
+      const scrambleResult = scrambleManager.generateCustomScrambleForType(cubeType, moves, difficulty);
+      
+      // Create a rich embed for the custom scramble
+      const scrambleEmbed = new EmbedBuilder()
+        .setTitle(`${this.getCubeTypeEmoji(cubeType)} Custom ${cubeType} Scramble`)
+        .setColor(0x9C59B6) // Different color for custom scrambles
+        .setDescription(`Here's your custom ${difficulty} difficulty scramble for ${cubeType}:`)
+        .addFields(
+          { 
+            name: 'Scramble', 
+            value: `\`\`\`\n${scrambleResult.scramble}\n\`\`\``, 
+            inline: false 
+          },
+          {
+            name: 'Parameters',
+            value: `• Cube Type: ${cubeType}\n• Difficulty: ${difficulty}${moves ? `\n• Moves: ${moves}` : ''}`,
+            inline: true
+          },
+          {
+            name: 'How to use',
+            value: 'Apply this scramble to your cube and time your solve. Good luck! 🍀',
+            inline: true
+          }
+        )
+        .setFooter({ text: `Daily Scramble Bot • ${new Date().toLocaleString()}` });
+      
+      // Create buttons for time tracking
+      const row = new ActionRowBuilder<ButtonBuilder>()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId('timer_ready')
+            .setLabel('Start Timer')
+            .setStyle(ButtonStyle.Primary)
+            .setEmoji('⏱️'),
+          new ButtonBuilder()
+            .setCustomId('timer_cancel')
+            .setLabel('Cancel')
+            .setStyle(ButtonStyle.Secondary)
+            .setEmoji('❌')
+        );
+      
+      // Send the embed with buttons
+      const response = await interaction.editReply({ 
+        embeds: [scrambleEmbed],
+        components: [row]
+      });
+      
+      // Create a collector for button interactions
+      const collector = response.createMessageComponentCollector({ 
+        filter: i => i.user.id === interaction.user.id,
+        time: 300000 // 5 minutes
+      });
+      
+      // Timer state
+      let timerActive = false;
+      let startTime = 0;
+      
+      // Handle button interactions
+      collector.on('collect', async i => {
+        try {
+          if (i.customId === 'timer_ready' && !timerActive) {
+            // Start timer
+            timerActive = true;
+            startTime = Date.now();
+            
+            // Update buttons to show stop option
+            const timerRow = new ActionRowBuilder<ButtonBuilder>()
+              .addComponents(
+                new ButtonBuilder()
+                  .setCustomId('timer_stop')
+                  .setLabel('Stop Timer')
+                  .setStyle(ButtonStyle.Danger)
+                  .setEmoji('⏹️'),
+                new ButtonBuilder()
+                  .setCustomId('timer_cancel')
+                  .setLabel('Cancel')
+                  .setStyle(ButtonStyle.Secondary)
+                  .setEmoji('❌')
+              );
+            
+            await i.update({ components: [timerRow] });
+          } 
+          else if (i.customId === 'timer_stop' && timerActive) {
+            // Stop timer and calculate elapsed time
+            const endTime = Date.now();
+            const elapsedTime = (endTime - startTime) / 1000; // Convert to seconds
+            timerActive = false;
+            
+            // Format time
+            const minutes = Math.floor(elapsedTime / 60);
+            const seconds = elapsedTime % 60;
+            const formattedTime = `${minutes > 0 ? `${minutes}m ` : ''}${seconds.toFixed(2)}s`;
+            
+            // Update embed with time result
+            const resultEmbed = new EmbedBuilder()
+              .setTitle(`${this.getCubeTypeEmoji(cubeType)} ${cubeType} Solve Complete!`)
+              .setColor(0x2ECC71)
+              .setDescription(`Congratulations on completing your custom scramble solve!`)
+              .addFields(
+                { 
+                  name: 'Scramble Used', 
+                  value: `\`\`\`\n${scrambleResult.scramble}\n\`\`\``, 
+                  inline: false 
+                },
+                {
+                  name: 'Parameters',
+                  value: `• Cube Type: ${cubeType}\n• Difficulty: ${difficulty}${moves ? `\n• Moves: ${moves}` : ''}`,
+                  inline: false
+                },
+                {
+                  name: '⏱️ Your Time',
+                  value: `**${formattedTime}**`,
+                  inline: true
+                },
+                {
+                  name: '🏆 Solve Rating',
+                  value: this.getSolveRating(elapsedTime),
+                  inline: true
+                }
+              )
+              .setFooter({ text: `Daily Scramble Bot • ${new Date().toLocaleString()}` });
+            
+            // New row with option to get another scramble
+            const newRow = new ActionRowBuilder<ButtonBuilder>()
+              .addComponents(
+                new ButtonBuilder()
+                  .setCustomId('new_custom_scramble')
+                  .setLabel('New Custom Scramble')
+                  .setStyle(ButtonStyle.Primary)
+                  .setEmoji('🔄')
+              );
+            
+            await i.update({ 
+              embeds: [resultEmbed],
+              components: [newRow]
+            });
+          }
+          else if (i.customId === 'new_custom_scramble') {
+            // Generate a new custom scramble with the same parameters
+            const newScrambleResult = scrambleManager.generateCustomScrambleForType(cubeType, moves, difficulty);
+            
+            // Create a new embed for the scramble
+            const newScrambleEmbed = new EmbedBuilder()
+              .setTitle(`${this.getCubeTypeEmoji(cubeType)} New Custom ${cubeType} Scramble`)
+              .setColor(0x9C59B6)
+              .setDescription(`Here's your new custom ${difficulty} difficulty scramble for ${cubeType}:`)
+              .addFields(
+                { 
+                  name: 'Scramble', 
+                  value: `\`\`\`\n${newScrambleResult.scramble}\n\`\`\``, 
+                  inline: false 
+                },
+                {
+                  name: 'Parameters',
+                  value: `• Cube Type: ${cubeType}\n• Difficulty: ${difficulty}${moves ? `\n• Moves: ${moves}` : ''}`,
+                  inline: true
+                },
+                {
+                  name: 'How to use',
+                  value: 'Apply this scramble to your cube and time your solve. Good luck! 🍀',
+                  inline: true
+                }
+              )
+              .setFooter({ text: `Daily Scramble Bot • ${new Date().toLocaleString()}` });
+            
+            // Reset the timer buttons
+            const row = new ActionRowBuilder<ButtonBuilder>()
+              .addComponents(
+                new ButtonBuilder()
+                  .setCustomId('timer_ready')
+                  .setLabel('Start Timer')
+                  .setStyle(ButtonStyle.Primary)
+                  .setEmoji('⏱️'),
+                new ButtonBuilder()
+                  .setCustomId('timer_cancel')
+                  .setLabel('Cancel')
+                  .setStyle(ButtonStyle.Secondary)
+                  .setEmoji('❌')
+              );
+            
+            // End the old collector
+            collector.stop();
+            
+            // Send the new embed with buttons
+            await i.update({ 
+              embeds: [newScrambleEmbed],
+              components: [row]
+            });
+          }
+          else if (i.customId === 'timer_cancel') {
+            // Cancel timer
+            timerActive = false;
+            collector.stop();
+            
+            await i.update({ 
+              components: [] 
+            });
+          }
+        } catch (error) {
+          console.error('Error handling timer button interaction:', error);
+        }
+      });
+      
+      collector.on('end', async (collected, reason) => {
+        if (reason === 'time' && collected.size === 0) {
+          try {
+            await interaction.editReply({ components: [] });
+          } catch (error) {
+            console.error('Error removing buttons after collector end:', error);
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Error handling custom scramble command:', error);
+      try {
+        await interaction.editReply('An error occurred while generating the custom scramble. Please try again later.');
+      } catch (replyError) {
+        console.error('Error sending error reply:', replyError);
+      }
+    }
+  }
+
   /**
    * Get a rating for a solve time (just for fun)
    * @param time The solve time in seconds
