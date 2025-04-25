@@ -39,6 +39,9 @@ export class AnalyticsHandler {
       } else if (analyticsType === 'combined') {
         // Combined analytics - shows all metrics in one place
         responseEmbeds = await this.generateCombinedAnalytics(interaction, limit, cubeType);
+      } else if (analyticsType === 'protips') {
+        // Show pro tips for analytics and speedcubing
+        responseEmbeds = [this.generateProTips(cubeType)];
       }
       
       if (responseEmbeds.length > 0) {
@@ -586,6 +589,121 @@ export class AnalyticsHandler {
       
       return [errorEmbed];
     }
+  }
+  /**
+   * Generate pro tips for speedcubing analytics
+   * This provides helpful insights and tips for interpreting data and improving solve times
+   */
+  private generateProTips(cubeType: string | null = null): EmbedBuilder {
+    // Create a collection of pro tips organized by category
+    const generalTips = [
+      "Track your progress over time by comparing daily analytics trends rather than focusing on single results",
+      "Use the 'Combined' analytics view for a comprehensive overview of your performance across all metrics",
+      "The most efficient practice happens when focusing on your weakest areas shown in the analytics",
+      "Share insights from your analytics with other cubers to get advice on improvement strategies",
+      "Pay attention to time-of-day patterns in your solve times to find your optimal practice window"
+    ];
+    
+    const techniqueBasedTips = [
+      "When analytics show inconsistent times, focus on improving F2L lookahead rather than learning new algorithms",
+      "Cross solutions should take ~12% of your total solve time; use metrics to verify if you're meeting this benchmark",
+      "Compare your averages with the global database to identify which solving phases need the most improvement",
+      "If your solve time distribution has high variance, focus on consistency before speed",
+      "Analyze DNF patterns to identify specific weaknesses in your solving method"
+    ];
+    
+    const equipmentBasedTips = [
+      "Test different cube tensioning settings and track performance changes in analytics",
+      "Switch between different lubes and track how they affect your average times over multiple sessions",
+      "Consider using a metronome to practice turning at consistent TPS (Turns Per Second) rates",
+      "Temperature affects cube performance; track solve environment metrics alongside times",
+      "When comparing cubes, use at least 100 solves per cube to get statistically significant data"
+    ];
+    
+    // Get 5 random unique tips from each category
+    function getRandomTips(tips: string[], count: number): string[] {
+      const shuffled = [...tips].sort(() => 0.5 - Math.random());
+      return shuffled.slice(0, count);
+    }
+    
+    // Select tips based on cube type if provided
+    let selectedTips: string[] = [];
+    let tipTitle = "🧠 Pro Analytics Tips";
+    let tipDescription = "Use these insights to improve your speedcubing analytics experience:";
+    
+    if (cubeType) {
+      // Add some cube-specific tips based on the cube type
+      const cubeSpecificTips: Record<string, string[]> = {
+        "2x2": [
+          "For 2x2, focus on one-looking the entire solve; your analytics should show sub-1 second recognition time",
+          "Track CLL vs. Ortega method performance separately to determine which is faster for you",
+          "2x2 scrambles with 1-2 solved faces often lead to faster times; track these patterns"
+        ],
+        "3x3": [
+          "For 3x3, compare your solve phase breakdowns (cross, F2L, OLL, PLL) to identify bottlenecks",
+          "Track your F2L pair recognition time separately from execution time",
+          "Consider analyzing your times by OLL/PLL case to identify problem algorithms"
+        ],
+        "3x3 BLD": [
+          "In BLD solving, memo time should ideally be twice as long as execution time",
+          "Track your success rate alongside speed to ensure you're not sacrificing accuracy",
+          "Analyze which letter pairs cause the most memo delays"
+        ],
+        "3x3 OH": [
+          "For OH solving, track algorithm subset performance to identify which need OH-specific algs",
+          "Compare your OH vs. two-handed solve distribution to identify OH-specific weaknesses",
+          "OH solving benefits from different cube tensions; track performance changes after adjustments"
+        ],
+        "Pyraminx": [
+          "For Pyraminx, track solve times with and without pre-inspection to gauge recognition improvement",
+          "Compare your times using different methods (e.g., layer-by-layer vs. top-first)",
+          "Edge orientation recognition is often the bottleneck in Pyraminx solves"
+        ],
+        "Skewb": [
+          "Track your Skewb center recognition time separately from corner execution",
+          "Compare your first vs. second half of Skewb solves to identify fatigue patterns",
+          "For Skewb, fixed rotation patterns often lead to faster solves than intuitive solutions"
+        ],
+        "Clock": [
+          "For Clock, track your pin setting time as a separate metric from dial turning",
+          "Clock solving benefits from consistent pin setting patterns; track which patterns yield better times",
+          "Analyze your Clock DNFs to identify if they're from pin setting errors or dial misreading"
+        ]
+      };
+      
+      // Get cube-specific tips
+      const specificTips = cubeSpecificTips[cubeType] || [];
+      
+      // Mix some cube-specific tips with general tips
+      selectedTips = [
+        ...specificTips,
+        ...getRandomTips(generalTips, 4),
+        ...getRandomTips(techniqueBasedTips, 4),
+        ...getRandomTips(equipmentBasedTips, 4)
+      ].slice(0, 15); // Ensure we have exactly 15 tips
+      
+      tipTitle = `🧠 Pro ${cubeType} Analytics Tips`;
+      tipDescription = `Specialized analytics insights for ${cubeType} solving:`;
+    } else {
+      // Get a mix of tips from all categories
+      selectedTips = [
+        ...getRandomTips(generalTips, 5),
+        ...getRandomTips(techniqueBasedTips, 5),
+        ...getRandomTips(equipmentBasedTips, 5)
+      ];
+    }
+    
+    // Format tips as a numbered list
+    const formattedTips = selectedTips.map((tip, index) => `**${index + 1}.** ${tip}`).join('\n\n');
+    
+    // Create an embed with the tips
+    const tipsEmbed = new EmbedBuilder()
+      .setTitle(tipTitle)
+      .setColor(0xF1C40F)
+      .setDescription(`${tipDescription}\n\n${formattedTips}`)
+      .setFooter({ text: 'Pro tip: Use these insights daily to continuously improve your solving skills!' });
+    
+    return tipsEmbed;
   }
 }
 

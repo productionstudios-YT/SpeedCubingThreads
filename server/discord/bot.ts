@@ -342,7 +342,8 @@ class DiscordBot {
               { name: 'Scramble Performance', value: 'solves' },
               { name: 'Daily Statistics', value: 'daily' },
               { name: 'Overview', value: 'overview' },
-              { name: 'Combined (All Analytics)', value: 'combined' }
+              { name: 'Combined (All Analytics)', value: 'combined' },
+              { name: 'Pro Tips (15 Analytics Tips)', value: 'protips' }
             )
         )
         .addStringOption(option => 
