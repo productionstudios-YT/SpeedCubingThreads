@@ -1,6 +1,13 @@
-import { BotConfig, ChallengeThread, InsertBotConfig, InsertChallengeThread, User, UserRole } from '@shared/schema';
+import { 
+  BotConfig, ChallengeThread, InsertBotConfig, InsertChallengeThread, 
+  User, UserRole, CommandUsage, SystemMetrics, DailyAnalytics, ScramblePerformance,
+  InsertCommandUsage, InsertSystemMetrics, InsertDailyAnalytics, InsertScramblePerformance
+} from '@shared/schema';
 import { db } from './db';
-import { botConfig, challengeThreads, users } from '@shared/schema';
+import { 
+  botConfig, challengeThreads, users, commandUsage, 
+  systemMetrics, dailyAnalytics, scramblePerformance 
+} from '@shared/schema';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import session from "express-session";
 import connectPg from "connect-pg-simple";
@@ -31,6 +38,30 @@ export interface IStorage {
   getAllUsers(): Promise<User[]>;
   createUser(username: string, passwordHash: string, role: UserRole): Promise<User>;
   updateUserLastLogin(id: number): Promise<User | undefined>;
+  
+  // Analytics operations
+  // Command usage tracking
+  logCommandUsage(data: InsertCommandUsage): Promise<CommandUsage>;
+  getCommandUsage(limit?: number): Promise<CommandUsage[]>;
+  getCommandUsageByName(commandName: string, limit?: number): Promise<CommandUsage[]>;
+  getCommandUsageByUser(userId: string, limit?: number): Promise<CommandUsage[]>;
+  
+  // System metrics tracking
+  recordSystemMetrics(metrics: InsertSystemMetrics): Promise<SystemMetrics>;
+  getLatestSystemMetrics(): Promise<SystemMetrics | undefined>;
+  getSystemMetricsHistory(limit?: number): Promise<SystemMetrics[]>;
+  
+  // Daily analytics tracking
+  createOrUpdateDailyAnalytics(date: Date, data: Partial<InsertDailyAnalytics>): Promise<DailyAnalytics>;
+  getDailyAnalytics(date: Date): Promise<DailyAnalytics | undefined>;
+  getDailyAnalyticsRange(startDate: Date, endDate: Date): Promise<DailyAnalytics[]>;
+  
+  // Scramble performance tracking
+  recordScramblePerformance(data: InsertScramblePerformance): Promise<ScramblePerformance>;
+  getScramblePerformance(limit?: number): Promise<ScramblePerformance[]>;
+  getScramblePerformanceByUser(userId: string, limit?: number): Promise<ScramblePerformance[]>;
+  getScramblePerformanceByCubeType(cubeType: string, limit?: number): Promise<ScramblePerformance[]>;
+  getAverageScramblePerformanceByCubeType(): Promise<{cubeType: string, averageSolveTime: number}[]>;
 }
 
 export class MemStorage implements IStorage {

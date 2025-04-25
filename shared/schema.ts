@@ -1,4 +1,4 @@
-import { pgTable, text, serial, timestamp, integer, boolean, varchar } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, timestamp, integer, boolean, varchar, jsonb, date } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -104,3 +104,91 @@ export const loginSchema = z.object({
 
 export type User = typeof users.$inferSelect;
 export type LoginCredentials = z.infer<typeof loginSchema>;
+
+// Analytics Tables
+// Command Usage Analytics
+export const commandUsage = pgTable("command_usage", {
+  id: serial("id").primaryKey(),
+  commandName: text("command_name").notNull(),
+  userId: text("user_id").notNull(),
+  guildId: text("guild_id"),
+  channelId: text("channel_id"),
+  parameters: jsonb("parameters"), // Store command parameters for analysis
+  executionTime: integer("execution_time_ms"), // Time taken to execute in milliseconds
+  status: text("status").notNull(), // "success", "error", "timeout"
+  error: text("error"), // Error message if any
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+});
+
+// System Performance Metrics
+export const systemMetrics = pgTable("system_metrics", {
+  id: serial("id").primaryKey(),
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+  rssMemory: integer("rss_memory").notNull(), // RSS memory usage in bytes
+  heapTotal: integer("heap_total").notNull(), // Total heap size in bytes
+  heapUsed: integer("heap_used").notNull(), // Used heap size in bytes
+  external: integer("external").notNull(), // External memory usage in bytes
+  uptime: integer("uptime").notNull(), // Bot uptime in seconds
+  activeThreads: integer("active_threads").notNull(), // Number of active threads
+  cpuUsage: jsonb("cpu_usage"), // CPU usage metrics
+  loadAverage: jsonb("load_average"), // System load average
+});
+
+// Daily Analytics Summary
+export const dailyAnalytics = pgTable("daily_analytics", {
+  id: serial("id").primaryKey(),
+  date: date("date").notNull().unique(),
+  totalCommands: integer("total_commands").notNull().default(0),
+  commandBreakdown: jsonb("command_breakdown"), // Count of each command used
+  scrambleUsage: jsonb("scramble_usage"), // Count of each cube type scrambled
+  dailyActiveUsers: integer("daily_active_users").notNull().default(0),
+  averageResponseTime: integer("average_response_time"), // Average response time in ms
+  errorCount: integer("error_count").notNull().default(0),
+  dailyChallengeMetrics: jsonb("daily_challenge_metrics"), // Metrics about daily challenges
+});
+
+// Scramble Performance Tracking
+export const scramblePerformance = pgTable("scramble_performance", {
+  id: serial("id").primaryKey(),
+  userId: text("user_id").notNull(),
+  guildId: text("guild_id"),
+  cubeType: text("cube_type").notNull(),
+  scramble: text("scramble").notNull(),
+  solveTime: integer("solve_time_ms"), // Time taken to solve in milliseconds
+  isCustomScramble: boolean("is_custom_scramble").notNull().default(false),
+  customParameters: jsonb("custom_parameters"), // For custom scrambles (moves, difficulty)
+  timestamp: timestamp("timestamp").notNull().defaultNow(),
+});
+
+// Schemas for inserting analytics data
+export const insertCommandUsageSchema = createInsertSchema(commandUsage).omit({
+  id: true,
+  timestamp: true,
+});
+
+export const insertSystemMetricsSchema = createInsertSchema(systemMetrics).omit({
+  id: true,
+  timestamp: true,
+});
+
+export const insertDailyAnalyticsSchema = createInsertSchema(dailyAnalytics).omit({
+  id: true,
+});
+
+export const insertScramblePerformanceSchema = createInsertSchema(scramblePerformance).omit({
+  id: true,
+  timestamp: true,
+});
+
+// Types for application use
+export type CommandUsage = typeof commandUsage.$inferSelect;
+export type InsertCommandUsage = z.infer<typeof insertCommandUsageSchema>;
+
+export type SystemMetrics = typeof systemMetrics.$inferSelect;
+export type InsertSystemMetrics = z.infer<typeof insertSystemMetricsSchema>;
+
+export type DailyAnalytics = typeof dailyAnalytics.$inferSelect;
+export type InsertDailyAnalytics = z.infer<typeof insertDailyAnalyticsSchema>;
+
+export type ScramblePerformance = typeof scramblePerformance.$inferSelect;
+export type InsertScramblePerformance = z.infer<typeof insertScramblePerformanceSchema>;
