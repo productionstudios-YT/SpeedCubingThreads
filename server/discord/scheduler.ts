@@ -161,7 +161,7 @@ export class Scheduler {
    * IST is UTC+5:30, so 10:30 UTC = 4:00 PM IST
    * 
    * Right at 4:00 PM IST, it first closes and archives ALL existing threads
-   * and then immediately creates the new thread for the day
+   * using the manual cleanup function, and then immediately creates the new thread for the day
    */
   private scheduleScramblePosts() {
     // At 10:30 UTC (4:00 PM IST)
@@ -169,46 +169,19 @@ export class Scheduler {
       try {
         console.log('🧹 DAILY CLEANUP: Executing daily thread cleanup before posting new scramble');
         
-        // First, get all threads from database (both expired and active)
-        const allThreads = await storage.getAllChallengeThreads();
+        // Use the manual thread cleanup function instead of implementing cleanup logic here
+        // This ensures consistent behavior between manual and scheduled cleanups
+        console.log('🧹 DAILY CLEANUP: Using manual thread cleanup function');
+        const cleanupResult = await this.triggerThreadCleanup();
         
-        if (allThreads.length > 0) {
-          console.log(`🧹 DAILY CLEANUP: Closing ALL ${allThreads.length} threads before posting new daily scramble`);
-          
-          // Create an array of promises for parallel processing
-          const archivePromises = allThreads.map(async (thread) => {
-            try {
-              console.log(`🧹 DAILY CLEANUP: Processing thread ${thread.id} (${thread.threadId})`);
-              
-              // Archive the thread through Discord but don't mark as deleted in database
-              try {
-                await discordBot.archiveThread(thread);
-                console.log(`✓ DAILY CLEANUP: Discord archival successful for thread ${thread.id}`);
-                return true;
-              } catch (discordError) {
-                console.error(`❌ DAILY CLEANUP: Discord API error on thread ${thread.id}:`, discordError);
-                return false;
-              }
-            } catch (threadError) {
-              console.error(`❌ DAILY CLEANUP: Critical error processing thread ${thread.id}:`, threadError);
-              return false;
-            }
-          });
-          
-          // Wait for all archive operations to complete with a timeout
-          const results = await Promise.allSettled(archivePromises);
-          
-          // Log statistics about the cleanup
-          const successful = results.filter(r => r.status === 'fulfilled' && r.value === true).length;
-          const failed = allThreads.length - successful;
-          
-          console.log(`🧹 DAILY CLEANUP: Results - ${successful} threads archived successfully, ${failed} failed`);
-          
-          // Add a small delay to ensure Discord has time to process all the archive operations
-          await new Promise(resolve => setTimeout(resolve, 2000));
+        if (cleanupResult.success) {
+          console.log(`🧹 DAILY CLEANUP: Successfully archived ${cleanupResult.count} threads`);
         } else {
-          console.log('🧹 DAILY CLEANUP: No threads to clean up before posting new daily scramble');
+          console.error('❌ DAILY CLEANUP: Failed to clean up threads');
         }
+        
+        // Add a small delay to ensure Discord has time to process all the archive operations
+        await new Promise(resolve => setTimeout(resolve, 2000));
         
         // Then create new threads
         console.log('🆕 Now creating new daily scramble threads');
