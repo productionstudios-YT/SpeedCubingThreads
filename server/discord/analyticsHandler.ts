@@ -512,6 +512,81 @@ export class AnalyticsHandler {
     const remainingSeconds = seconds % 60;
     return `${minutes}m ${remainingSeconds.toFixed(2)}s`;
   }
+  
+  /**
+   * Generate combined analytics - shows all metrics in one place
+   */
+  private async generateCombinedAnalytics(
+    interaction: ChatInputCommandInteraction, 
+    limit: number, 
+    cubeType: string | null
+  ): Promise<EmbedBuilder[]> {
+    try {
+      // Create a container for all embeds
+      const allEmbeds: EmbedBuilder[] = [];
+      
+      // Title embed to explain what's being shown
+      const titleEmbed = new EmbedBuilder()
+        .setTitle('🔄 Combined Analytics Dashboard')
+        .setColor(0x9B59B6)
+        .setDescription('Comprehensive view of all metrics and analytics in one place')
+        .addFields(
+          { 
+            name: 'Dashboard Contents', 
+            value: '• System Performance\n• Command Usage\n• Scramble Performance\n• Daily Statistics', 
+            inline: false 
+          }
+        );
+      allEmbeds.push(titleEmbed);
+      
+      // Add system performance data
+      const systemEmbeds = await this.generateSystemPerformanceAnalytics(Math.min(5, limit));
+      // Add the most relevant system embed (usually the first one)
+      if (systemEmbeds.length > 0) {
+        allEmbeds.push(systemEmbeds[0]);
+      }
+      
+      // Add command usage data
+      const commandEmbeds = await this.generateCommandUsageAnalytics(Math.min(5, limit));
+      // Add the most relevant command embed
+      if (commandEmbeds.length > 0) {
+        allEmbeds.push(commandEmbeds[0]);
+      }
+      
+      // Add scramble performance data
+      const scrambleEmbeds = await this.generateScramblePerformanceAnalytics(cubeType, Math.min(5, limit));
+      // Add the most relevant scramble embed
+      if (scrambleEmbeds.length > 0) {
+        allEmbeds.push(scrambleEmbeds[0]);
+      }
+      
+      // Add daily analytics data
+      const dailyEmbeds = await this.generateDailyAnalytics(Math.min(5, limit));
+      // Add the most relevant daily embed
+      if (dailyEmbeds.length > 0) {
+        allEmbeds.push(dailyEmbeds[0]);
+      }
+      
+      // If we've collected data, return it
+      if (allEmbeds.length > 1) { // More than just the title embed
+        return allEmbeds;
+      } else {
+        // Add a message about no data
+        titleEmbed.setDescription('No analytics data is available yet. Try using the bot more to generate meaningful analytics.');
+        return [titleEmbed];
+      }
+    } catch (error) {
+      console.error('Error generating combined analytics:', error);
+      
+      // Return an error embed
+      const errorEmbed = new EmbedBuilder()
+        .setTitle('❌ Combined Analytics Error')
+        .setColor(0xED4245)
+        .setDescription('An error occurred while generating the combined analytics dashboard.');
+      
+      return [errorEmbed];
+    }
+  }
 }
 
 // Export an instance of the handler

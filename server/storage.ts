@@ -368,12 +368,12 @@ export class MemStorage implements IStorage {
     // Simplified for in-memory storage
     const entry: DailyAnalytics = {
       id: 1,
-      date,
+      date: date.toISOString().split('T')[0], // Convert Date to YYYY-MM-DD string format
       totalCommands: data.totalCommands ?? 0,
       commandBreakdown: data.commandBreakdown,
       scrambleUsage: data.scrambleUsage,
       dailyActiveUsers: data.dailyActiveUsers ?? 0,
-      averageResponseTime: data.averageResponseTime,
+      averageResponseTime: data.averageResponseTime ?? null,
       errorCount: data.errorCount ?? 0,
       dailyChallengeMetrics: data.dailyChallengeMetrics
     };
