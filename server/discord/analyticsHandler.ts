@@ -404,58 +404,45 @@ export class AnalyticsHandler {
         .setDescription(`Analytics for the last ${limit} days`);
       
       if (dailyData && dailyData.length > 0) {
+        // Add summary stats
+        const totalThreads = dailyData.reduce((sum, day) => sum + day.threadsCreated, 0);
+        const totalCommands = dailyData.reduce((sum, day) => sum + day.commandsUsed, 0);
+        const avgSolveTime = dailyData.reduce((sum, day) => sum + day.averageSolveTime, 0) / dailyData.length;
+        
+        embed.addFields(
+          { name: '🧵 Total Threads', value: totalThreads.toString(), inline: true },
+          { name: '🔍 Total Commands', value: totalCommands.toString(), inline: true },
+          { name: '⏱️ Avg Solve Time', value: this.formatDuration(avgSolveTime), inline: true }
+        );
+        
         // Create a table with the daily data
         let dailyTable = '```\n';
-        dailyTable += '|    Date    | Commands | Users | Daily Challenges |\n';
-        dailyTable += '|------------|----------|-------|------------------|\n';
+        dailyTable += '|  Date  | Threads | Commands | Avg Solve Time |\n';
+        dailyTable += '|--------|---------|----------|----------------|\n';
         
-        dailyData.forEach(day => {
+        // Sort by date descending (most recent first)
+        const sortedData = [...dailyData].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        
+        sortedData.forEach(day => {
           const date = new Date(day.date).toLocaleDateString();
-          const commands = day.totalCommands.toString().padEnd(8);
-          const users = day.dailyActiveUsers.toString().padEnd(5);
-          const challenges = day.dailyChallengeMetrics && typeof day.dailyChallengeMetrics === 'object' ? 
-            (Object.hasOwnProperty.call(day.dailyChallengeMetrics, 'totalPosted') ? 
-              (day.dailyChallengeMetrics as any).totalPosted : '0').toString() : '0';
+          const threads = day.threadsCreated.toString().padEnd(7);
+          const commands = day.commandsUsed.toString().padEnd(8);
+          const avgTime = this.formatDuration(day.averageSolveTime).padEnd(14);
           
-          dailyTable += `| ${date} | ${commands} | ${users} | ${challenges.padEnd(16)} |\n`;
+          dailyTable += `| ${date} | ${threads} | ${commands} | ${avgTime} |\n`;
         });
         
         dailyTable += '```';
         
-        embed.setDescription(dailyTable);
+        const tableEmbed = new EmbedBuilder()
+          .setTitle('📈 Daily Activity')
+          .setColor(0x3498DB)
+          .setDescription(dailyTable);
+        
         embeds.push(embed);
-        
-        // Add scramble usage breakdown if available
-        const scrambleUsageEmbed = new EmbedBuilder()
-          .setTitle('🧩 Scramble Type Usage')
-          .setColor(0xE67E22)
-          .setDescription('Breakdown of scramble usage by cube type');
-        
-        let hasScrambleData = false;
-        
-        // Combine scramble usage data across all days
-        const scrambleUsage: Record<string, number> = {};
-        
-        dailyData.forEach(day => {
-          if (day.scrambleUsage) {
-            Object.entries(day.scrambleUsage).forEach(([type, count]) => {
-              scrambleUsage[type] = (scrambleUsage[type] || 0) + (count as number);
-              hasScrambleData = true;
-            });
-          }
-        });
-        
-        if (hasScrambleData) {
-          let scrambleField = '';
-          Object.entries(scrambleUsage).forEach(([type, count]) => {
-            scrambleField += `• ${type}: ${count} uses\n`;
-          });
-          
-          scrambleUsageEmbed.addFields({ name: 'Usage by Cube Type', value: scrambleField, inline: false });
-          embeds.push(scrambleUsageEmbed);
-        }
+        embeds.push(tableEmbed);
       } else {
-        embed.setDescription('No daily analytics data available yet. Daily analytics are collected at the end of each day.');
+        embed.setDescription('No daily analytics data available yet. Data is collected at the end of each day.');
         embeds.push(embed);
       }
     } catch (error) {
@@ -469,51 +456,6 @@ export class AnalyticsHandler {
     }
     
     return embeds;
-  }
-  
-  /**
-   * Format bytes to human-readable format
-   */
-  private formatBytes(bytes: number): string {
-    if (bytes === 0) return '0 Bytes';
-    
-    const k = 1024;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
-  }
-  
-  /**
-   * Format milliseconds to readable uptime format
-   */
-  private formatUptime(ms: number): string {
-    const seconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-    const days = Math.floor(hours / 24);
-    
-    return `${days}d ${hours % 24}h ${minutes % 60}m ${seconds % 60}s`;
-  }
-  
-  /**
-   * Format duration in milliseconds to a readable string
-   */
-  private formatDuration(ms: number): string {
-    if (ms === 0) return '0.00s';
-    
-    if (ms < 1000) {
-      return `${ms.toFixed(2)}ms`;
-    }
-    
-    const seconds = ms / 1000;
-    if (seconds < 60) {
-      return `${seconds.toFixed(2)}s`;
-    }
-    
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = seconds % 60;
-    return `${minutes}m ${remainingSeconds.toFixed(2)}s`;
   }
   
   /**
@@ -590,6 +532,7 @@ export class AnalyticsHandler {
       return [errorEmbed];
     }
   }
+  
   /**
    * Generate pro tips for speedcubing analytics
    * This provides helpful insights and tips for interpreting data and improving solve times
@@ -620,11 +563,11 @@ export class AnalyticsHandler {
       "When comparing cubes, use at least 100 solves per cube to get statistically significant data"
     ];
     
-    // Get 5 random unique tips from each category
-    function getRandomTips(tips: string[], count: number): string[] {
+    // Get random unique tips from each category
+    const getRandomTips = (tips: string[], count: number): string[] => {
       const shuffled = [...tips].sort(() => 0.5 - Math.random());
       return shuffled.slice(0, count);
-    }
+    };
     
     // Select tips based on cube type if provided
     let selectedTips: string[] = [];
@@ -704,6 +647,51 @@ export class AnalyticsHandler {
       .setFooter({ text: 'Pro tip: Use these insights daily to continuously improve your solving skills!' });
     
     return tipsEmbed;
+  }
+  
+  /**
+   * Format bytes to human-readable format
+   */
+  private formatBytes(bytes: number): string {
+    if (bytes === 0) return '0 Bytes';
+    
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  }
+  
+  /**
+   * Format milliseconds to readable uptime format
+   */
+  private formatUptime(ms: number): string {
+    const seconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    
+    return `${days}d ${hours % 24}h ${minutes % 60}m ${seconds % 60}s`;
+  }
+  
+  /**
+   * Format duration in milliseconds to a readable string
+   */
+  private formatDuration(ms: number): string {
+    if (ms === 0) return '0.00s';
+    
+    if (ms < 1000) {
+      return `${ms.toFixed(2)}ms`;
+    }
+    
+    const seconds = ms / 1000;
+    if (seconds < 60) {
+      return `${seconds.toFixed(2)}s`;
+    }
+    
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}m ${remainingSeconds.toFixed(2)}s`;
   }
 }
 
