@@ -89,7 +89,7 @@ export class AnalyticsHandler {
         uptime: Math.floor(interaction.client.uptime || 0) / 1000,
         activeThreads: (await storage.getAllChallengeThreads()).filter(t => !t.isDeleted).length,
         cpuUsage: { user: process.cpuUsage().user, system: process.cpuUsage().system },
-        loadAverage: process.loadavg()
+        loadAverage: [0, 0, 0] // Default values as process.loadavg() might not be available
       });
     
       // Try to get command usage data
@@ -407,8 +407,9 @@ export class AnalyticsHandler {
           const date = new Date(day.date).toLocaleDateString();
           const commands = day.totalCommands.toString().padEnd(8);
           const users = day.dailyActiveUsers.toString().padEnd(5);
-          const challenges = day.dailyChallengeMetrics ? 
-            (day.dailyChallengeMetrics.totalPosted || '0').toString() : '0';
+          const challenges = day.dailyChallengeMetrics && typeof day.dailyChallengeMetrics === 'object' ? 
+            (Object.hasOwnProperty.call(day.dailyChallengeMetrics, 'totalPosted') ? 
+              (day.dailyChallengeMetrics as any).totalPosted : '0').toString() : '0';
           
           dailyTable += `| ${date} | ${commands} | ${users} | ${challenges.padEnd(16)} |\n`;
         });
