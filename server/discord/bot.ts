@@ -3,6 +3,7 @@ import { BotConfig, ChallengeThread, InsertChallengeThread } from '@shared/schem
 import { storage } from '../storage';
 import { scrambleManager } from './scrambleManager';
 import { scheduler } from './scheduler';
+import { analyticsHandler } from './analyticsHandler';
 
 class DiscordBot {
   private client: Client;
@@ -157,7 +158,7 @@ class DiscordBot {
       } else if (interaction.commandName === 'custom-scramble') {
         await this.handleCustomScrambleCommand(interaction);
       } else if (interaction.commandName === 'analytics') {
-        await this.handleAnalyticsCommand(interaction);
+        await analyticsHandler.handleAnalyticsCommand(interaction);
       }
     });
   }
