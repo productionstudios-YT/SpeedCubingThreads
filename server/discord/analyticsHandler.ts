@@ -36,6 +36,9 @@ export class AnalyticsHandler {
       } else if (analyticsType === 'daily') {
         // Daily statistics analytics
         responseEmbeds = await this.generateDailyAnalytics(limit);
+      } else if (analyticsType === 'combined') {
+        // Combined analytics - shows all metrics in one place
+        responseEmbeds = await this.generateCombinedAnalytics(interaction, limit, cubeType);
       }
       
       if (responseEmbeds.length > 0) {
