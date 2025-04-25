@@ -919,6 +919,111 @@ Please enter the role IDs to ping, comma separated (or leave empty to enter cust
               </div>
             )}
 
+            {selectedTab === "analytics" && (
+              <div className="mb-6">
+                <h3 className="text-white font-semibold mb-2">Analytics Dashboard</h3>
+                <Card className="bg-[#2F3136] border-0">
+                  <CardContent className="p-4">
+                    <p className="text-[#DCDDDE] mb-4">
+                      Real-time performance analytics are now available directly through the Discord command system. 
+                      Use the following commands to access analytics data:
+                    </p>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                      <Card className="bg-[#202225] border-0 p-3">
+                        <div className="flex items-center mb-2">
+                          <span className="w-8 h-8 rounded-full bg-[#5865F2] flex items-center justify-center text-white mr-3">
+                            <i className="fas fa-chart-line"></i>
+                          </span>
+                          <h4 className="text-white font-medium">Command Analytics</h4>
+                        </div>
+                        <p className="text-[#DCDDDE] text-sm mb-2">
+                          View analytics on command usage patterns, frequency, and user activity.
+                        </p>
+                        <div className="bg-[#2F3136] rounded p-2 mt-2">
+                          <code className="text-[#57F287] text-xs">/analytics type:commands</code>
+                        </div>
+                      </Card>
+                      
+                      <Card className="bg-[#202225] border-0 p-3">
+                        <div className="flex items-center mb-2">
+                          <span className="w-8 h-8 rounded-full bg-[#FEE75C] flex items-center justify-center text-[#2F3136] mr-3">
+                            <i className="fas fa-microchip"></i>
+                          </span>
+                          <h4 className="text-white font-medium">System Performance</h4>
+                        </div>
+                        <p className="text-[#DCDDDE] text-sm mb-2">
+                          Monitor system health, memory usage, and resource utilization.
+                        </p>
+                        <div className="bg-[#2F3136] rounded p-2 mt-2">
+                          <code className="text-[#57F287] text-xs">/analytics type:system</code>
+                        </div>
+                      </Card>
+                      
+                      <Card className="bg-[#202225] border-0 p-3">
+                        <div className="flex items-center mb-2">
+                          <span className="w-8 h-8 rounded-full bg-[#EB459E] flex items-center justify-center text-white mr-3">
+                            <i className="fas fa-stopwatch"></i>
+                          </span>
+                          <h4 className="text-white font-medium">Solve Time Analytics</h4>
+                        </div>
+                        <p className="text-[#DCDDDE] text-sm mb-2">
+                          Analyze solve performance metrics by cube type and user.
+                        </p>
+                        <div className="bg-[#2F3136] rounded p-2 mt-2">
+                          <code className="text-[#57F287] text-xs">/analytics type:solves</code>
+                          <p className="text-[#DCDDDE] text-xs mt-1">Filter by cube type with the cube_type parameter</p>
+                        </div>
+                      </Card>
+                      
+                      <Card className="bg-[#202225] border-0 p-3">
+                        <div className="flex items-center mb-2">
+                          <span className="w-8 h-8 rounded-full bg-[#57F287] flex items-center justify-center text-white mr-3">
+                            <i className="fas fa-calendar-day"></i>
+                          </span>
+                          <h4 className="text-white font-medium">Daily Activity</h4>
+                        </div>
+                        <p className="text-[#DCDDDE] text-sm mb-2">
+                          Track daily usage patterns, challenge participation, and user engagement.
+                        </p>
+                        <div className="bg-[#2F3136] rounded p-2 mt-2">
+                          <code className="text-[#57F287] text-xs">/analytics type:daily</code>
+                        </div>
+                      </Card>
+                    </div>
+                    
+                    <Card className="bg-[#202225] border-0 p-3 mb-4">
+                      <div className="flex items-center mb-2">
+                        <span className="w-8 h-8 rounded-full bg-[#3498DB] flex items-center justify-center text-white mr-3">
+                          <i className="fas fa-tachometer-alt"></i>
+                        </span>
+                        <h4 className="text-white font-medium">Complete Dashboard</h4>
+                      </div>
+                      <p className="text-[#DCDDDE] text-sm mb-2">
+                        View a complete overview of all analytics metrics in one place.
+                      </p>
+                      <div className="bg-[#2F3136] rounded p-2 mt-2">
+                        <code className="text-[#57F287] text-xs">/analytics type:overview</code>
+                      </div>
+                    </Card>
+                    
+                    <div className="bg-amber-500/10 border border-amber-500/30 rounded-md p-3 text-amber-200">
+                      <div className="flex items-start">
+                        <i className="fas fa-lightbulb mt-1 mr-2"></i>
+                        <div>
+                          <h5 className="font-medium mb-1">Pro Tip</h5>
+                          <p className="text-sm">
+                            You can control how many entries to display by using the <code className="bg-[#2F3136] px-1 rounded">limit</code> parameter. 
+                            For example: <code className="bg-[#2F3136] px-1 rounded">/analytics type:commands limit:20</code>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+            
             {selectedTab === "settings" && (
               <div className="mb-6">
                 <h3 className="text-white font-semibold mb-2">
