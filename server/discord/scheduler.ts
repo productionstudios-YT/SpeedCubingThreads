@@ -160,44 +160,26 @@ export class Scheduler {
    * Cron format: minute hour * * *
    * IST is UTC+5:30, so 10:30 UTC = 4:00 PM IST
    * 
-   * Right at 4:00 PM IST, it first closes and archives ALL existing threads
-   * using the manual cleanup function, and then immediately creates the new thread for the day
+   * Right at 4:00 PM IST, it triggers the manual post function which 
+   * first closes and archives ALL existing threads, then creates a new thread
    */
   private scheduleScramblePosts() {
     // At 10:30 UTC (4:00 PM IST)
     const job = cron.schedule('30 10 * * *', async () => {
       try {
-        console.log('🧹 DAILY CLEANUP: Executing daily thread cleanup before posting new scramble');
+        console.log('📅 SCHEDULED: Triggering daily scramble post via manual function');
         
-        // Use the manual thread cleanup function instead of implementing cleanup logic here
-        // This ensures consistent behavior between manual and scheduled cleanups
-        console.log('🧹 DAILY CLEANUP: Using manual thread cleanup function');
-        const cleanupResult = await this.triggerThreadCleanup();
+        // Use the existing triggerDailyScramblePost function which already handles
+        // closing ALL threads and creating a new thread with proper validation
+        const success = await this.triggerDailyScramblePost();
         
-        if (cleanupResult.success) {
-          console.log(`🧹 DAILY CLEANUP: Successfully archived ${cleanupResult.count} threads`);
+        if (success) {
+          console.log('✅ SCHEDULED: Daily scramble post process completed successfully');
         } else {
-          console.error('❌ DAILY CLEANUP: Failed to clean up threads');
-        }
-        
-        // Add a small delay to ensure Discord has time to process all the archive operations
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        // Then create new threads
-        console.log('🆕 Now creating new daily scramble threads');
-        const configs = await storage.getAllBotConfigs();
-        
-        for (const config of configs) {
-          if (!config.enabled) {
-            console.log(`Config ${config.id} is disabled, skipping`);
-            continue;
-          }
-          
-          await discordBot.createDailyScrambleThread(config);
-          console.log(`✓ Successfully created daily thread for config ${config.id}`);
+          console.error('❌ SCHEDULED: Daily scramble post process failed');
         }
       } catch (error) {
-        console.error('❌ Error in scheduled scramble post process:', error);
+        console.error('❌ SCHEDULED: Error in scheduled scramble post process:', error);
       }
     });
     
